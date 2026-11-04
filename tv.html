@@ -63,6 +63,15 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:.9rem}
 .eve .c0{border-color:var(--yard)}
 #radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.75)}
+.sunmoon{flex:1;display:grid;grid-template-columns:auto 1fr;gap:3vw;align-items:center}
+.sunmoon .kv{grid-template-columns:auto auto;font-size:1.8rem;gap:1.2vh 1.5vw;justify-content:start}
+.sunmoon .kv b{white-space:nowrap}
+.sunmoon .small{font-size:1rem}
+.moon{display:flex;align-items:center;gap:1.5vw}
+.moon svg{width:20vh;height:20vh;flex:none}
+.moon .callout{font-size:1.8rem}
+#moonNext{white-space:pre-line}
+#moonLit{font-size:1.5rem}
 header button{font:500 .85rem var(--body);background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 10px;margin-left:.6vw}
 header button:focus-visible{outline:2px solid var(--accent)}
 </style>
@@ -108,6 +117,13 @@ header button:focus-visible{outline:2px solid var(--accent)}
         <div class="chart" style="flex:.6"><canvas id="cPrecip"></canvas></div>
       </div>
       <div class="slide">
+        <div class="slidehead"><h2>Sun and moon today</h2><span class="dots"></span></div>
+        <div class="sunmoon">
+          <div><h2>Sun</h2><div class="kv"><span>Sunrise</span><b id="sunRise">--</b><span>Sunset</span><b id="sunSet">--</b><span>Daylight</span><b id="dayLen">--</b></div><p class="small" id="dayChange"></p></div>
+          <div class="moon"><svg viewBox="0 0 100 100" id="moonPic"></svg><div><div class="callout" id="moonName">--</div><div class="num" id="moonLit"></div><p class="small" id="moonNext"></p></div></div>
+        </div>
+      </div>
+      <div class="slide">
         <div class="slidehead"><h2>Wind, 10 days</h2><span class="dots"></span></div>
         <div class="chart"><canvas id="cWind"></canvas></div>
       </div>
@@ -119,7 +135,7 @@ header button:focus-visible{outline:2px solid var(--accent)}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 <script src="app.js"></script>
 <script>
-// Rotate the detail panel. The 10-day outlook is the home view: 40 seconds, the others 15.
+// Rotate the detail panel. The 10-day outlook is the home view: 20 seconds, the others 10.
 (function () {
   const slides = document.querySelectorAll("#rotor .slide");
   let n = 0;
@@ -129,7 +145,7 @@ header button:focus-visible{outline:2px solid var(--accent)}
       s.querySelector(".dots").innerHTML = Array.from(slides, (_, j) => `<span class="${j === n ? "on" : ""}"></span>`).join("");
     });
   }
-  function next() { show(); setTimeout(() => { n = (n + 1) % slides.length; next(); }, n === 0 ? 40000 : 15000); }
+  function next() { show(); setTimeout(() => { n = (n + 1) % slides.length; next(); }, n === 0 ? 20000 : 10000); }
   next();
 })();
 

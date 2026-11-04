@@ -36,7 +36,7 @@ async function main() {
     latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 10,
     temperature_unit: "fahrenheit", wind_speed_unit: "mph", precipitation_unit: "inch",
     hourly: "temperature_2m,apparent_temperature,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,pressure_msl,precipitation_probability,precipitation,snowfall,is_day",
-    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max",
+    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,sunrise,sunset,daylight_duration",
     minutely_15: "precipitation"}));
   const results = await Promise.allSettled([
     get(`https://api.weather.gov/alerts/active?point=${LAT.toFixed(4)},${LON.toFixed(4)}`),
@@ -44,7 +44,7 @@ async function main() {
   const [alerts, daily, hourly, grid, model] = results.map(r => r.status === "fulfilled" ? r.value : null);
   if (alerts) showAlerts(alerts.features);
   if (daily) showDays(daily.properties.periods);
-  if (model) { showRain(model, latest); showEvenings(model); try { showTenDay(model); } catch (e) { note("charts didn't load"); } }
+  if (model) { showRain(model, latest); showEvenings(model); showSunMoon(model); try { showTenDay(model); } catch (e) { note("charts didn't load"); } }
   showHourly(hourly && hourly.properties.periods, model);
   showLow(daily && daily.properties.periods, model);
   if (grid) showSnow(grid.properties, model);
@@ -143,6 +143,28 @@ function showEvenings(m) {
     const name = new Date(d + "T12:00").toLocaleDateString("en-US", {weekday: "short"});
     return `<div class="c${cls}"><b>${name}</b><br>${["Clear", "Partly", "Cloudy"][cls]}<br><span class="num">${Math.round(avg)}%</span></div>`;
   }).join("");
+}
+
+// Sunrise and sunset come from the model feed. Moon phase is worked out here from a known new moon; it's within about half a day.
+function showSunMoon(m) {
+  const d = m.daily, clock = t => { const [h, mi] = t.slice(11, 16).split(":").map(Number); return (h % 12 || 12) + ":" + String(mi).padStart(2, "0") + (h < 12 ? " AM" : " PM"); };
+  const len = s => Math.floor(s / 3600) + " h " + Math.round(s % 3600 / 60) + " min";
+  const diff = Math.round((d.daylight_duration[0] - d.daylight_duration[1]) / 60);
+  $("sunRise").textContent = clock(d.sunrise[0]);
+  $("sunSet").textContent = clock(d.sunset[0]);
+  $("dayLen").textContent = len(d.daylight_duration[0]);
+  $("dayChange").textContent = diff === 0 ? "Same daylight as tomorrow" : `Tomorrow: ${Math.abs(diff)} min ${diff > 0 ? "less" : "more"} daylight`;
+
+  const P = 29.530588853, now = Date.now(), age = (((now - Date.UTC(2000, 0, 6, 18, 14)) / 864e5) % P + P) % P;
+  const lit = (1 - Math.cos(2 * Math.PI * age / P)) / 2;
+  const names = ["New moon", "Waxing crescent", "First quarter", "Waxing gibbous", "Full moon", "Waning gibbous", "Last quarter", "Waning crescent"];
+  $("moonName").textContent = names[Math.round(age / P * 8) % 8];
+  $("moonLit").textContent = Math.round(lit * 100) + "% lit";
+  const next = (target, label) => { let days = (target - age + P) % P; if (days < 0.5) days += P; return label + " " + new Date(now + days * 864e5).toLocaleDateString("en-US", {timeZone: TZ, weekday: "short", month: "short", day: "numeric"}); };
+  $("moonNext").textContent = next(P / 2, "Full moon") + "\n" + next(0, "New moon");
+  // Lit part: a half disc on the lit side plus an ellipse that either adds to it (gibbous) or cuts into it (crescent)
+  const waxing = age < P / 2, rx = 40 * Math.abs(1 - 2 * lit), side = waxing ? 1 : 0;
+  $("moonPic").innerHTML = `<circle cx="50" cy="50" r="40" fill="#2b3742"/><path fill="#e6ecf1" d="M50 10 A40 40 0 0 ${side} 50 90 A${rx} 40 0 0 ${lit > 0.5 ? side : 1 - side} 50 10Z"/>`;
 }
 
 function showDays(periods) {
