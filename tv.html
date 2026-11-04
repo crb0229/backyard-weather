@@ -63,11 +63,13 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:.9rem}
 .eve .c0{border-color:var(--yard)}
 #radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.75)}
+header button{font:500 .85rem var(--body);background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 10px;margin-left:.6vw}
+header button:focus-visible{outline:2px solid var(--accent)}
 </style>
 <script>window.CHART_FONT = 15; window.HOURS = 10;</script>
 </head>
 <body>
-<header><h1>Brown's Weather Station</h1><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
+<header><h1>Brown's Weather Station</h1><span class="small"><span id="problems" hidden></span> <span id="updated"></span> <button id="musicBtn" type="button">Music: off</button> <button id="nextBtn" type="button" hidden>Next station</button></span></header>
 <div id="alerts"></div>
 
 <div class="grid">
@@ -129,6 +131,40 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
   }
   function next() { show(); setTimeout(() => { n = (n + 1) % slides.length; next(); }, n === 0 ? 40000 : 15000); }
   next();
+})();
+
+// Background music: free internet radio streams of piano and coffee-shop jazz.
+// Browsers won't start sound by themselves, so the first start needs one click.
+// After that the page remembers it was on and tries to resume on reload.
+(function () {
+  const stations = [
+    ["Jazz Piano", "https://jzr-piano.ice.infomaniak.ch/jzr-piano.mp3"],
+    ["Piano Jazz Lounge", "https://0nlineradio.radioho.st/lounge-piano-jazz-bar"],
+    ["Coffee Bar Lounge", "https://stream.epic-lounge.com/coffee-bar-lounge"],
+    ["Radio Art Jazz Piano", "https://live.radioart.com/fJazz_piano.mp3"],
+    ["Chillout Piano", "https://stream.epic-piano.com/chillout-piano"]
+  ];
+  const btn = document.getElementById("musicBtn"), nextBtn = document.getElementById("nextBtn");
+  const audio = new Audio();
+  audio.volume = 0.5;
+  let i = 0, on = false;
+  try { i = (+localStorage.getItem("wx:station") || 0) % stations.length; on = localStorage.getItem("wx:music") === "on"; } catch (e) {}
+  function save() { try { localStorage.setItem("wx:station", i); localStorage.setItem("wx:music", on ? "on" : "off"); } catch (e) {} }
+  function label(text) { btn.textContent = text; nextBtn.hidden = !on; }
+  function start() {
+    audio.src = stations[i][1];
+    audio.play().then(() => label("Music: " + stations[i][0]))
+      .catch(() => label("Music: click to start"));
+  }
+  btn.addEventListener("click", () => {
+    if (on && !audio.paused) { on = false; audio.pause(); audio.removeAttribute("src"); label("Music: off"); }
+    else { on = true; start(); }
+    save();
+  });
+  nextBtn.addEventListener("click", () => { i = (i + 1) % stations.length; save(); start(); });
+  // A dropped stream moves on to the next station after a few seconds.
+  audio.addEventListener("error", () => { if (on) setTimeout(() => { i = (i + 1) % stations.length; start(); }, 3000); });
+  if (on) start();
 })();
 </script>
 </body>
