@@ -237,30 +237,15 @@ function showTenDay(m) {
     {label: "My anemometer", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderDash: [3, 3]}]);
 }
 
-let frames = [], fi = 0, timer = null, map, close = null;
+let frames = [], fi = 0, timer = null;
 function radar() {
-  map = L.map("radar", {zoomControl: false, attributionControl: true}).setView([LAT, LON], 8);
+  const map = L.map("radar", {zoomControl: false, attributionControl: true}).setView([LAT, LON], 8);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution: "© OpenStreetMap contributors", maxZoom: 12, className: "basemap"}).addTo(map);
   L.circleMarker([LAT, LON], {radius: 5, color: "#0b7a5a", fillOpacity: 1}).addTo(map);
   const offs = ["m55m", "m50m", "m45m", "m40m", "m35m", "m30m", "m25m", "m20m", "m15m", "m10m", "m05m", ""];
   frames = offs.map((o, i) => ({mins: 55 - i * 5, layer: L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913${o ? "-" + o : ""}/{z}/{x}/{y}.png`, {opacity: 0, attribution: "IEM NEXRAD"}).addTo(map)}));
   step(); play();
   $("radarBtn").onclick = () => timer ? (clearInterval(timer), timer = null, $("radarBtn").textContent = "Play") : play();
-  $("closeBtn").onclick = closeUp;
-}
-// KGRR close-up: the Grand Rapids radar's own latest scan (sharper near the radar), no loop
-function closeUp() {
-  if (close) {
-    map.removeLayer(close); close = null;
-    $("closeBtn").textContent = "KGRR close-up"; $("radarBtn").hidden = false;
-    map.setView([LAT, LON], 8); play(); return;
-  }
-  clearInterval(timer); timer = null;
-  frames.forEach(f => f.layer.setOpacity(0));
-  close = L.tileLayer("https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/ridge::GRR-N0B-0/{z}/{x}/{y}.png?" + Date.now(), {opacity: 0.75, attribution: "IEM NEXRAD KGRR"}).addTo(map);
-  map.setView([LAT, LON], 10);
-  $("radarTime").textContent = "KGRR close-up, latest scan";
-  $("closeBtn").textContent = "Regional loop"; $("radarBtn").hidden = true;
 }
 function play() { if (matchMedia("(prefers-reduced-motion: reduce)").matches) { fi = frames.length - 1; step(); return; } timer = setInterval(step, 600); $("radarBtn").textContent = "Pause"; }
 function step() {
