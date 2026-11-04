@@ -1,0 +1,19 @@
+{
+ "lat": 42.83049399999999,
+ "lon": -85.518078,
+ "time": "2026-11-04T17:44:00.000Z",
+ "temp": 66,
+ "dew": 63.29,
+ "feels": 66,
+ "humidity": 91,
+ "wind": 3.1,
+ "gust": 4.5,
+ "winddir": 85,
+ "maxgust_today": 17.2,
+ "pressure": 29.596,
+ "rain_rate": 0,
+ "rain_today": 0.03,
+ "rain_event": 0,
+ "solar": 114.51,
+ "uv": 1
+}
