@@ -89,16 +89,16 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
     </section>
 
     <section class="panel rotor" id="rotor" style="padding:0">
+      <div class="slide on">
+        <div class="slidehead"><h2>10-day outlook</h2><span class="dots"></span></div>
+        <div class="tenday" id="tenday"></div>
+        <div class="chart"><canvas id="cTemp"></canvas></div>
+      </div>
       <div class="slide">
         <div class="slidehead"><h2>Next 10 hours at my yard</h2><span class="dots"></span></div>
         <table id="hourly"></table>
         <h2>Evening sky, 7 PM to midnight</h2>
         <div class="eve" id="evenings"></div>
-      </div>
-      <div class="slide on">
-        <div class="slidehead"><h2>10-day outlook</h2><span class="dots"></span></div>
-        <div class="tenday" id="tenday"></div>
-        <div class="chart"><canvas id="cTemp"></canvas></div>
       </div>
       <div class="slide">
         <div class="slidehead"><h2>Sky and rain, 10 days</h2><span class="dots"></span></div>
