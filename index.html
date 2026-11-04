@@ -11,10 +11,11 @@
 :root{
   --bg:#eef1f4; --panel:#ffffff; --fg:#17202a; --muted:#5b6876; --line:#d5dce3;
   --accent:#1f5f8b; --yard:#0b7a5a; --warn:#b35c00; --bad:#b3261e; --cold:#1c6fb8;
+  --feels:#8a4fa8; --humid:#7d8a1e; --cloud:#9aa5b0; --cloud-fill:rgba(140,152,164,.28); --accent-fill:rgba(31,95,139,.3); --night:rgba(23,32,42,.06);
   --display:"Barlow Semi Condensed",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif;
   --num:"IBM Plex Mono",ui-monospace,monospace;
 }
-@media (prefers-color-scheme:dark){:root{--bg:#0f151b;--panel:#18212a;--fg:#e6ecf1;--muted:#93a1ae;--line:#2b3742;--accent:#6fb0de;--yard:#4cc79c;--warn:#f0a24a;--bad:#ff7a70;--cold:#7ab8ff;color-scheme:dark}}
+@media (prefers-color-scheme:dark){:root{--bg:#0f151b;--panel:#18212a;--fg:#e6ecf1;--muted:#93a1ae;--line:#2b3742;--accent:#6fb0de;--yard:#4cc79c;--warn:#f0a24a;--bad:#ff7a70;--cold:#7ab8ff;--feels:#c48ae0;--humid:#b5c247;--cloud:#8a96a2;--cloud-fill:rgba(160,172,184,.22);--accent-fill:rgba(111,176,222,.3);--night:rgba(0,0,0,.28);color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--body);
   padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right));
@@ -54,6 +55,13 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .eve div{flex:1 0 64px;text-align:center;border:1px solid var(--line);border-radius:6px;padding:6px 4px;font-size:.8rem}
 .eve .c0{border-color:var(--yard)}
 .score td{text-align:left}
+.chart{position:relative;margin-top:10px}
+.tenday{display:grid;grid-template-columns:repeat(10,minmax(58px,1fr));gap:4px;overflow-x:auto;text-align:center;font-size:.78rem}
+.tenday div{border:1px solid var(--line);border-radius:6px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tenday svg{width:30px;height:30px}
+.hi{color:var(--bad)} .lo{color:var(--cold)}
+#radar .leaflet-tile-pane .basemap{filter:grayscale(1) contrast(.9) brightness(1.05)}
+@media (prefers-color-scheme:dark){#radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.75)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
@@ -104,6 +112,16 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
   </section>
 
   <section class="panel">
+    <h2>10-day outlook</h2>
+    <div class="tenday" id="tenday"></div>
+    <div class="chart" style="height:200px"><canvas id="cTemp"></canvas></div>
+    <div class="chart" style="height:190px"><canvas id="cSky"></canvas></div>
+    <div class="chart" style="height:130px"><canvas id="cPrecip"></canvas></div>
+    <div class="chart" style="height:160px"><canvas id="cWind"></canvas></div>
+    <p class="small">Model forecast (Open-Meteo best match). Shaded bands are night; the white line is now; the dashed line is 32°F. Dew point and "my anemometer" wind are adjusted to this station; temperature is not, because adjusting it didn't help. Tap a chart to read values.</p>
+  </section>
+
+  <section class="panel">
     <h2>Evening sky, 7 PM to midnight</h2>
     <div class="eve" id="evenings"></div>
   </section>
@@ -123,6 +141,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 <script>
 const TZ = "America/Detroit";
 let LAT = 42.789, LON = -85.516;
@@ -153,19 +172,21 @@ async function main() {
   if (latest) { LAT = latest.lat; LON = latest.lon; showNow(latest); }
   else $("nowAge").textContent = "Station data not collected yet.";
   radar();
-  const pt = (await get(`https://api.weather.gov/points/${LAT.toFixed(4)},${LON.toFixed(4)}`)).properties;
+  const ptP = get(`https://api.weather.gov/points/${LAT.toFixed(4)},${LON.toFixed(4)}`).then(r => r.properties);
+  const nwsGet = k => ptP.then(pt => get(pt[k]));   // each NWS piece loads on its own, so one failure doesn't blank the page
   const om = get("https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
-    latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 7,
+    latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 10,
     temperature_unit: "fahrenheit", wind_speed_unit: "mph", precipitation_unit: "inch",
-    hourly: "temperature_2m,dew_point_2m,wind_speed_10m,wind_gusts_10m,cloud_cover,precipitation_probability,precipitation,snowfall",
+    hourly: "temperature_2m,apparent_temperature,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,pressure_msl,precipitation_probability,precipitation,snowfall,is_day",
+    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max",
     minutely_15: "precipitation"}));
   const results = await Promise.allSettled([
     get(`https://api.weather.gov/alerts/active?point=${LAT.toFixed(4)},${LON.toFixed(4)}`),
-    get(pt.forecast), get(pt.forecastHourly), get(pt.forecastGridData), om]);
+    nwsGet("forecast"), nwsGet("forecastHourly"), nwsGet("forecastGridData"), om]);
   const [alerts, daily, hourly, grid, model] = results.map(r => r.status === "fulfilled" ? r.value : null);
   if (alerts) showAlerts(alerts.features);
   if (daily) showDays(daily.properties.periods);
-  if (model) { showRain(model, latest); showEvenings(model); }
+  if (model) { showRain(model, latest); showEvenings(model); showTenDay(model); }
   showHourly(hourly && hourly.properties.periods, model);
   showLow(daily && daily.properties.periods, model);
   if (grid) showSnow(grid.properties, model);
@@ -286,11 +307,86 @@ function showScore() {
   $("scoreNote").textContent = `"Miss" is the average error, in the most recent ${corr.vars.temp?.test_days || 30} days, against what the station recorded. Those days are held out when building the correction, so it is a fair test. A correction turns off by itself when it stops beating the raw model. NWS comparison starts after 14 days of our own logging. Rebuilt ${new Date(corr.updated).toLocaleString("en-US", {timeZone: TZ, month: "short", day: "numeric", hour: "numeric", minute: "2-digit"})}.`;
 }
 
+// ---------- 10-day outlook ----------
+const ICON = {
+  sun: '<circle cx="16" cy="16" r="6" fill="#f2a900"/><g stroke="#f2a900" stroke-width="2" stroke-linecap="round"><path d="M16 3v4M16 25v4M3 16h4M25 16h4M6.8 6.8l2.8 2.8M22.4 22.4l2.8 2.8M6.8 25.2l2.8-2.8M22.4 9.6l2.8-2.8"/></g>',
+  cloud: '<path d="M9 24h15a5 5 0 0 0 0-10 7 7 0 0 0-13.4 1.5A4.3 4.3 0 0 0 9 24z" fill="var(--muted)"/>',
+  part: '<circle cx="12" cy="11" r="5" fill="#f2a900"/><g stroke="#f2a900" stroke-width="2" stroke-linecap="round"><path d="M12 2v2M3 11h2M5.6 4.6l1.4 1.4M18.4 4.6L17 6"/></g><path d="M11 26h13a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.5 1.3A3.9 3.9 0 0 0 11 26z" fill="var(--muted)"/>',
+  rain: '<path d="M9 18h15a5 5 0 0 0 0-10 7 7 0 0 0-13.4 1.5A4.3 4.3 0 0 0 9 18z" fill="var(--muted)"/><g stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M11 21l-2 5M17 21l-2 5M23 21l-2 5"/></g>',
+  snow: '<path d="M9 18h15a5 5 0 0 0 0-10 7 7 0 0 0-13.4 1.5A4.3 4.3 0 0 0 9 18z" fill="var(--muted)"/><g fill="var(--accent)"><circle cx="11" cy="23" r="1.6"/><circle cx="17" cy="26" r="1.6"/><circle cx="23" cy="23" r="1.6"/></g>',
+  storm: '<path d="M9 18h15a5 5 0 0 0 0-10 7 7 0 0 0-13.4 1.5A4.3 4.3 0 0 0 9 18z" fill="var(--muted)"/><path d="M17 18l-4 7h4l-2 6 6-8h-4l2-5z" fill="#f2a900"/>',
+  fog: '<g stroke="var(--muted)" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h22M8 17h18M5 22h22"/></g>'};
+function sky(code) {
+  if (code >= 95) return ["storm", "Storms"];
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return ["snow", code >= 85 ? "Snow showers" : "Snow"];
+  if (code >= 80) return ["rain", "Showers"];
+  if (code >= 51) return ["rain", code < 60 ? "Drizzle" : "Rain"];
+  if (code >= 45) return ["fog", "Fog"];
+  return [["sun", "part", "part", "cloud"][code], ["Sunny", "Mostly sunny", "Partly cloudy", "Cloudy"][code]];
+}
+
+const charts = [];
+function showTenDay(m) {
+  const d = m.daily;
+  $("tenday").innerHTML = d.time.map((t, i) => {
+    const [ic, word] = sky(d.weather_code[i]);
+    const dt = new Date(t + "T12:00"), name = dt.toLocaleDateString("en-US", {weekday: "short"}) + "<br>" + (dt.getMonth() + 1) + "/" + dt.getDate();
+    const amt = d.snowfall_sum[i] >= 0.1 ? d.snowfall_sum[i].toFixed(1) + '" snow' : d.precipitation_sum[i].toFixed(2) + '"';
+    return `<div><b>${name}</b><span class="num" style="white-space:nowrap"><span class="hi">${Math.round(d.temperature_2m_max[i])}°</span> | <span class="lo">${Math.round(d.temperature_2m_min[i])}°</span></span><svg viewBox="0 0 32 32">${ICON[ic]}</svg><span>${word}</span><span class="num small">${amt}</span></div>`;
+  }).join("");
+
+  const h = m.hourly, css = getComputedStyle(document.documentElement), c = n => css.getPropertyValue(n).trim();
+  const T = h.time, now = T.findIndex(t => localMs(t) > Date.now()) - 1;
+  const night = {id: "night", beforeDatasetsDraw(ch) {
+    const {ctx, chartArea: a, scales: {x}} = ch, w = (x.getPixelForValue(1) - x.getPixelForValue(0)) / 2;
+    ctx.save(); ctx.fillStyle = c("--night");
+    h.is_day.forEach((v, i) => { if (!v) ctx.fillRect(x.getPixelForValue(i) - w, a.top, 2 * w, a.bottom - a.top); });
+    if (now >= 0) { ctx.fillStyle = c("--fg"); ctx.fillRect(x.getPixelForValue(now), a.top, 1.5, a.bottom - a.top); }
+    ctx.restore(); }};
+  const base = (y, extra = {}) => ({
+    type: "line", plugins: [night],
+    options: {maintainAspectRatio: false, animation: false, interaction: {mode: "index", intersect: false},
+      plugins: {legend: {labels: {color: c("--muted"), boxWidth: 12, boxHeight: 2, font: {size: 11}}},
+        tooltip: {callbacks: {label: it => `${it.dataset.label}: ${it.raw == null ? "--" : Math.round(it.raw * 100) / 100}`, title:it => new Date(localMs(T[it[0].dataIndex])).toLocaleString("en-US", {timeZone: TZ, weekday: "short", hour: "numeric"})}}},
+      elements: {point: {radius: 0}, line: {borderWidth: 1.6, tension: .3}},
+      scales: {x: {grid: {display: false}, ticks: {color: c("--muted"), autoSkip: false, maxRotation: 0, font: {size: 10},
+          callback: (v, i) => T[i].endsWith("T12:00") ? new Date(T[i]).toLocaleDateString("en-US", {weekday: "short"}) : ""}},
+        y: {grid: {color: c("--line")}, ticks: {color: c("--muted"), font: {size: 10}}, ...y}, ...extra}}});
+  const mk = (id, cfg, datasets) => { charts.push(new Chart($(id), {...cfg, data: {labels: T, datasets}})); };
+  charts.forEach(ch => ch.destroy()); charts.length = 0;
+  const dew = T.map((t, i) => yard("dew", t, h.dew_point_2m[i]) ?? h.dew_point_2m[i]);
+  const flat = v => T.map(() => v);
+
+  mk("cTemp", base({}), [
+    {label: "Temperature °F", data: h.temperature_2m, borderColor: c("--bad")},
+    {label: "Feels like", data: h.apparent_temperature, borderColor: c("--feels")},
+    {label: "Dew point (yard)", data: dew, borderColor: c("--yard")},
+    {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [4, 4], borderWidth: 1}]);
+
+  mk("cSky", base({min: 0, max: 100}, {p: {position: "right", grid: {display: false}, ticks: {color: c("--muted"), font: {size: 10}, callback: v => v.toFixed(2)}}}), [
+    {label: "Rain chance %", data: h.precipitation_probability, borderColor: c("--accent"), backgroundColor: c("--accent-fill"), fill: true},
+    {label: "Cloud cover %", data: h.cloud_cover, borderColor: c("--cloud"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 1},
+    {label: "Humidity %", data: h.relative_humidity_2m, borderColor: c("--humid")},
+    {label: "Pressure in", data: h.pressure_msl.map(p => p * 0.02953), borderColor: c("--fg"), yAxisID: "p"}]);
+
+  let run = 0;
+  mk("cPrecip", base({min: 0, suggestedMax: 0.1, ticks: {color: c("--muted"), font: {size: 10}, callback: v => v.toFixed(2)}}), [
+    {label: "Hourly rain in", type: "bar", data: h.precipitation, backgroundColor: c("--accent")},
+    {label: "Snowfall in", type: "bar", data: h.snowfall, backgroundColor: c("--cold")},
+    {label: "Running total in", data: h.precipitation.map(p => run += p || 0), borderColor: c("--fg"), borderWidth: 1}]);
+
+  mk("cWind", base({min: 0}), [
+    {label: "Wind mph (open field)", data: h.wind_speed_10m, borderColor: c("--accent"),
+      pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 3, pointBackgroundColor: c("--accent"),
+      pointRotation: x => (h.wind_direction_10m[x.dataIndex] + 180) % 360},
+    {label: "Gusts", data: h.wind_gusts_10m, borderColor: c("--warn"), borderWidth: 1},
+    {label: "My anemometer", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderDash: [3, 3]}]);
+}
+
 let frames = [], fi = 0, timer = null;
 function radar() {
-  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
   const map = L.map("radar", {zoomControl: false, attributionControl: true}).setView([LAT, LON], 8);
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png`, {attribution: "OpenStreetMap, CARTO", maxZoom: 12}).addTo(map);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution: "© OpenStreetMap contributors", maxZoom: 12, className: "basemap"}).addTo(map);
   L.circleMarker([LAT, LON], {radius: 5, color: "#0b7a5a", fillOpacity: 1}).addTo(map);
   const offs = ["m55m", "m50m", "m45m", "m40m", "m35m", "m30m", "m25m", "m20m", "m15m", "m10m", "m05m", ""];
   frames = offs.map((o, i) => ({mins: 55 - i * 5, layer: L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913${o ? "-" + o : ""}/{z}/{x}/{y}.png`, {opacity: 0, attribution: "IEM NEXRAD"}).addTo(map)}));
@@ -305,6 +401,7 @@ function step() {
 }
 
 main().catch(e => { $("rainCall").textContent = "Could not load forecast: " + e.message; });
+setTimeout(() => location.reload(), 15 * 60000);   // refresh every 15 min so it can stay open on a phone or TV
 </script>
 </body>
 </html>
