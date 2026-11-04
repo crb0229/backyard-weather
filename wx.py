@@ -24,8 +24,14 @@ def get_json(url, params=None):
     if params:
         url += "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.load(r)
+    for wait in (2, 5, 15, 30, 0):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or not wait:   # 429 = too many requests; wait and retry
+                raise
+            time.sleep(wait)
 
 
 def path(name):
@@ -59,8 +65,14 @@ def ambient_keys():
     return {"apiKey": os.environ["AMBIENT_API_KEY"], "applicationKey": os.environ["AMBIENT_APP_KEY"]}
 
 
+DEVICE = None
+
+
 def ambient_device():
-    dev = get_json("https://api.ambientweather.net/v1/devices", ambient_keys())[0]
+    global DEVICE
+    if DEVICE is None:
+        DEVICE = get_json("https://api.ambientweather.net/v1/devices", ambient_keys())[0]
+    dev = DEVICE
     coords = (dev.get("info", {}).get("coords") or {}).get("coords") or {}
     return dev, coords.get("lat", FALLBACK_LAT), coords.get("lon", FALLBACK_LON)
 
