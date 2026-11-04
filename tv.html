@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Brown's Weather Station TV</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one 16:9 screen, no scrolling. Left: radar, always on. Right top: now, always on. Right bottom: detail that rotates. Sizes scale with screen height (vh). */
+:root{
+  --bg:#0f151b; --panel:#18212a; --fg:#e6ecf1; --muted:#93a1ae; --line:#2b3742;
+  --accent:#6fb0de; --yard:#4cc79c; --warn:#f0a24a; --bad:#ff7a70; --cold:#7ab8ff;
+  --feels:#c48ae0; --humid:#b5c247; --cloud:#8a96a2; --cloud-fill:rgba(160,172,184,.22); --accent-fill:rgba(111,176,222,.3); --night:rgba(0,0,0,.28);
+  --display:"Barlow Semi Condensed",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --num:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark; font-size:1.9vh;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--bg);color:var(--fg);font:1rem/1.35 var(--body);padding:1.6vh 1.6vw;display:flex;flex-direction:column;gap:1.4vh}
+header{display:flex;justify-content:space-between;align-items:baseline}
+h1{font:600 2rem var(--display);margin:0}
+h2{font:600 .9rem var(--display);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 .6vh}
+.small{font-size:.85rem;color:var(--muted)}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.alert{background:var(--bad);color:#fff;border-radius:8px;padding:.8vh 1vw;font:700 1.3rem var(--display)}
+.alert p{display:none}
+.alert summary{list-style:none}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:1.05fr 1fr;gap:1.4vh 1.4vw}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.2vh 1.2vw;min-width:0;min-height:0}
+.left{display:flex;flex-direction:column}
+#radar{flex:1;border-radius:8px;overflow:hidden}
+.radarbar{display:flex;justify-content:space-between;margin-top:.6vh}
+.right{display:flex;flex-direction:column;gap:1.4vh;min-height:0}
+.top{display:grid;grid-template-columns:auto 1fr;gap:1vh 2vw;align-items:center}
+.big{font:600 5rem/1 var(--num)}
+#nowKv{grid-template-columns:repeat(4,auto);justify-content:start;column-gap:1.4vw}
+#nowAge{display:none}
+.tenday .num:first-of-type{font-size:.62rem;letter-spacing:-.04em}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3vh 1.2vw;font-size:1.05rem}
+.kv b{font-weight:500;font-family:var(--num)}
+.strip{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:1.4vw;border-top:1px solid var(--line);padding-top:1vh;grid-column:1/3}
+.callout{font:600 1.35rem/1.2 var(--display)}
+.yard{color:var(--yard);font-weight:600}
+.flag{display:inline-block;font:600 .9rem var(--display);letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid}
+.freeze{color:var(--cold);border-color:var(--cold)} .frost{color:var(--warn);border-color:var(--warn)} .ok{color:var(--muted);border-color:var(--line)}
+.rotor{flex:1;position:relative;min-height:0}
+.slide{position:absolute;inset:1.2vh 1.2vw;display:flex;flex-direction:column;gap:1vh;opacity:0;transition:opacity .8s}
+.slide.on{opacity:1}
+.slidehead{display:flex;justify-content:space-between;align-items:center}
+.dots span{display:inline-block;width:.8vh;height:.8vh;border-radius:50%;background:var(--line);margin-left:.5vh}
+.dots span.on{background:var(--accent)}
+.chart{position:relative;flex:1;min-height:0}
+table{border-collapse:collapse;font-size:.95rem;width:100%}
+th,td{padding:.45vh .3vw;text-align:center;white-space:nowrap}
+th{font-weight:500;color:var(--muted);text-align:left}
+tr+tr td,tr+tr th{border-top:1px solid var(--line)}
+.tenday{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:.4vw;text-align:center;font-size:.85rem}
+.tenday div{border:1px solid var(--line);border-radius:6px;padding:.5vh 2px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tenday svg{width:3.4vh;height:3.4vh}
+.hi{color:var(--bad)} .lo{color:var(--cold)}
+.eve{display:flex;gap:.6vw}
+.eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:.9rem}
+.eve .c0{border-color:var(--yard)}
+#radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.75)}
+</style>
+<script>window.CHART_FONT = 15; window.HOURS = 10;</script>
+</head>
+<body>
+<header><h1>Brown's Weather Station</h1><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
+<div id="alerts"></div>
+
+<div class="grid">
+  <section class="panel left">
+    <h2>Radar, KGRR area</h2>
+    <div id="radar"></div>
+    <div class="radarbar"><span class="small num" id="radarTime"></span><button id="radarBtn" type="button" hidden>Pause</button></div>
+  </section>
+
+  <div class="right">
+    <section class="panel top">
+      <div class="big" id="nowTemp">--</div>
+      <div><h2>Now at the station</h2><div class="kv" id="nowKv"></div><p class="small" id="nowAge"></p></div>
+      <div class="strip">
+        <div><h2>Rain and storms</h2><div class="callout" id="rainCall">Checking...</div></div>
+        <div><h2>Tonight's low</h2><div class="kv"><span>Official</span><b id="lowNws">--</b><span class="yard">My yard</span><b class="yard" id="lowYard">--</b></div><span id="frostFlag"></span></div>
+        <div><h2>Next 48 h</h2><div class="kv"><span>Snow</span><b id="snowAmt">--</b><span>Ice</span><b id="iceAmt">--</b></div></div>
+      </div>
+    </section>
+
+    <section class="panel rotor" id="rotor" style="padding:0">
+      <div class="slide">
+        <div class="slidehead"><h2>Next 10 hours at my yard</h2><span class="dots"></span></div>
+        <table id="hourly"></table>
+        <h2>Evening sky, 7 PM to midnight</h2>
+        <div class="eve" id="evenings"></div>
+      </div>
+      <div class="slide on">
+        <div class="slidehead"><h2>10-day outlook</h2><span class="dots"></span></div>
+        <div class="tenday" id="tenday"></div>
+        <div class="chart"><canvas id="cTemp"></canvas></div>
+      </div>
+      <div class="slide">
+        <div class="slidehead"><h2>Sky and rain, 10 days</h2><span class="dots"></span></div>
+        <div class="chart"><canvas id="cSky"></canvas></div>
+        <div class="chart" style="flex:.6"><canvas id="cPrecip"></canvas></div>
+      </div>
+      <div class="slide">
+        <div class="slidehead"><h2>Wind, 10 days</h2><span class="dots"></span></div>
+        <div class="chart"><canvas id="cWind"></canvas></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="app.js"></script>
+<script>
+// Rotate the detail panel. The 10-day outlook is the home view: 40 seconds, the others 15.
+(function () {
+  const slides = document.querySelectorAll("#rotor .slide");
+  let n = 0;
+  function show() {
+    slides.forEach((s, i) => {
+      s.classList.toggle("on", i === n);
+      s.querySelector(".dots").innerHTML = Array.from(slides, (_, j) => `<span class="${j === n ? "on" : ""}"></span>`).join("");
+    });
+  }
+  function next() { show(); setTimeout(() => { n = (n + 1) % slides.length; next(); }, n === 0 ? 40000 : 15000); }
+  next();
+})();
+</script>
+</body>
+</html>
