@@ -298,7 +298,7 @@ def cmd_rebuild():
         raw_err = mae([f - o for _, o, f in test])
         cor_err = mae([f - o for _, o, f in corrected])
         entry = {"days": days, "test_days": test_days, "raw_error": raw_err, "corrected_error": cor_err,
-                 "on": cor_err is not None and cor_err < raw_err,
+                 "on": cor_err is not None and cor_err < raw_err * 0.95,   # must cut the miss by at least 5%
                  "typical_bias": round(statistics.median(o - f for _, o, f in prs), 1) if var != "wind"
                  else round(sum(o for _, o, _ in prs) / max(sum(f for _, _, f in prs), 0.1), 2)}
         if var == "temp":
@@ -307,6 +307,8 @@ def cmd_rebuild():
             entry["low_raw_error"] = mae([rl[n] - ol[n] for n in nights])
             entry["low_corrected_error"] = mae([cl[n] - ol[n] for n in nights])
             entry["low_nights"] = len(nights)
+            if entry["low_corrected_error"] is not None and entry["low_corrected_error"] > entry["low_raw_error"]:
+                entry["on"] = False   # never let the correction make overnight lows worse
         # How the official NWS forecast has done over the same test hours, once we have our own log
         nprs = [p for p in pairs(var, nws) if p[0] >= cut]
         if len({p[0][:10] for p in nprs}) >= 14:
