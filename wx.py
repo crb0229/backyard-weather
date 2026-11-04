@@ -7,7 +7,7 @@ Commands (run by GitHub Actions, not by hand):
 
 Keys come from environment variables AMBIENT_API_KEY and AMBIENT_APP_KEY (GitHub secrets).
 """
-import csv, json, os, statistics, sys, time, urllib.parse, urllib.request
+import csv, http.client, json, os, statistics, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -24,14 +24,17 @@ def get_json(url, params=None):
     if params:
         url += "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers=UA)
-    for wait in (2, 5, 15, 30, 0):
+    for wait in (2, 5, 15, 30, 60, 0):
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
-            if e.code != 429 or not wait:   # 429 = too many requests; wait and retry
+            if (e.code != 429 and e.code < 500) or not wait:   # retry "too many requests" and server errors
                 raise
-            time.sleep(wait)
+        except (OSError, ValueError, http.client.HTTPException):  # dropped or cut-off connection
+            if not wait:
+                raise
+        time.sleep(wait)
 
 
 def path(name):
@@ -46,6 +49,7 @@ def read_csv(name):
 
 
 def write_csv(name, rows, fields):
+    os.makedirs(DATA, exist_ok=True)
     with open(path(name), "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["time"] + fields)
         w.writeheader()
@@ -137,23 +141,37 @@ def to_hourly(readings):
     return rows
 
 
-def add_station_history(since):
+def add_station_history(since, resume=False, minutes=45):
+    """Walk back from now (or, to resume a backfill, from the oldest saved hour) to `since`.
+    Saves every 50 days so a failure loses little; stops after `minutes` so the run ends cleanly."""
     obs = read_csv("obs_hourly.csv")
     end = datetime.now(timezone.utc)
+    if resume and obs:
+        end = datetime.fromisoformat(min(obs)).replace(tzinfo=timezone.utc) + timedelta(hours=1)
     stop = datetime.fromisoformat(since).replace(tzinfo=timezone.utc)
-    readings = []
-    while end > stop:
-        batch = station_readings(int(end.timestamp() * 1000))
-        if not batch:
-            break
-        readings += batch
-        oldest = min(r["dateutc"] for r in batch)
-        end = datetime.fromtimestamp(oldest / 1000, timezone.utc) - timedelta(seconds=1)
-    new = to_hourly(readings)
-    oldest_full = min(new)[:13] if new else ""
-    obs.update({t: r for t, r in new.items() if t[:13] > oldest_full})  # first hour may be partial
-    write_csv("obs_hourly.csv", obs, ["temp", "dew", "wind", "gust"])
-    return len(obs)
+    deadline = time.time() + minutes * 60
+    readings, finished = [], False
+
+    def save():
+        new = to_hourly(readings)
+        oldest_full = min(new)[:13] if new else ""
+        obs.update({t: r for t, r in new.items() if t[:13] > oldest_full})  # oldest hour may be partial
+        write_csv("obs_hourly.csv", obs, ["temp", "dew", "wind", "gust"])
+
+    try:
+        while end > stop and time.time() < deadline:
+            batch = station_readings(int(end.timestamp() * 1000))
+            if not batch:
+                break
+            readings += batch
+            oldest = min(r["dateutc"] for r in batch)
+            end = datetime.fromtimestamp(oldest / 1000, timezone.utc) - timedelta(seconds=1)
+            if len(readings) % (288 * 50) < len(batch):
+                save()
+        finished = end <= stop or time.time() < deadline
+    finally:
+        save()
+    return len(obs), finished
 
 
 # ---------- past model forecasts (Open-Meteo, 24 hours ahead) ----------
@@ -314,12 +332,13 @@ def cmd_daily():
 def cmd_backfill():
     os.makedirs(DATA, exist_ok=True)
     cmd_latest()
-    n_obs = add_station_history(START_DATE)
+    n_obs, finished = add_station_history(START_DATE, resume=True)
     first = min(read_csv("obs_hourly.csv"))[:10]
     n_mod = add_model_history(max(first, START_DATE),
                               (datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat())
     cmd_rebuild()
-    print(f"Station hours: {n_obs}, first {first}. Model hours: {n_mod}.")
+    print(f"Station hours: {n_obs}, back to {first}. Model hours: {n_mod}.")
+    print("BACKFILL COMPLETE" if finished else "BACKFILL PARTIAL - run backfill again to continue")
 
 
 if __name__ == "__main__":
