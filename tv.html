@@ -72,13 +72,15 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .moon .callout{font-size:1.8rem}
 #moonNext{white-space:pre-line}
 #moonLit{font-size:1.5rem}
+.clock{font:600 1.6rem var(--display)}
+.clock b{font:600 1.6rem var(--num);color:var(--accent);margin-left:.8vw}
 header button{font:500 .85rem var(--body);background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 10px;margin-left:.6vw}
 header button:focus-visible{outline:2px solid var(--accent)}
 </style>
 <script>window.CHART_FONT = 15; window.HOURS = 10;</script>
 </head>
 <body>
-<header><h1>Brown's Weather Station</h1><span class="small"><span id="problems" hidden></span> <span id="updated"></span> <button id="musicBtn" type="button">Music: off</button> <button id="nextBtn" type="button" hidden>Next station</button></span></header>
+<header><h1>Brown's Weather Station</h1><span class="clock"><span id="today"></span> <b class="num" id="clock"></b></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span> <button id="musicBtn" type="button">Music: off</button> <button id="nextBtn" type="button" hidden>Next station</button></span></header>
 <div id="alerts"></div>
 
 <div class="grid">
@@ -147,6 +149,16 @@ header button:focus-visible{outline:2px solid var(--accent)}
   }
   function next() { show(); setTimeout(() => { n = (n + 1) % slides.length; next(); }, n === 0 ? 20000 : 10000); }
   next();
+})();
+
+// Date and time in the header, Michigan time, refreshed every 15 seconds.
+(function () {
+  function tick() {
+    const now = new Date(), tz = "America/Detroit";
+    document.getElementById("today").textContent = now.toLocaleDateString("en-US", {timeZone: tz, weekday: "long", month: "long", day: "numeric", year: "numeric"});
+    document.getElementById("clock").textContent = now.toLocaleTimeString("en-US", {timeZone: tz, hour: "numeric", minute: "2-digit"});
+  }
+  tick(); setInterval(tick, 15000);
 })();
 
 // Background music: free internet radio streams of piano and coffee-shop jazz.
