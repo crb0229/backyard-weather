@@ -42,6 +42,7 @@ async function main() {
     get(`https://api.weather.gov/alerts/active?point=${LAT.toFixed(4)},${LON.toFixed(4)}`),
     nwsGet("forecast"), nwsGet("forecastHourly"), nwsGet("forecastGridData"), om]);
   const [alerts, daily, hourly, grid, model] = results.map(r => r.status === "fulfilled" ? r.value : null);
+  if (window.onData) try { window.onData(latest, model, alerts ? alerts.features : []); } catch (e) { note("theme didn't load"); }   // the TV page sets its theme here, before the charts read the colors
   if (alerts) showAlerts(alerts.features);
   if (daily) showDays(daily.properties.periods);
   if (model) { showRain(model, latest); showEvenings(model); showSunMoon(model); try { showTenDay(model); } catch (e) { note("charts didn't load"); } }
@@ -267,8 +268,32 @@ function radar() {
   const offs = ["m55m", "m50m", "m45m", "m40m", "m35m", "m30m", "m25m", "m20m", "m15m", "m10m", "m05m", ""];
   frames = offs.map((o, i) => ({mins: 55 - i * 5, layer: L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913${o ? "-" + o : ""}/{z}/{x}/{y}.png`, {opacity: 0, attribution: "IEM NEXRAD"}).addTo(map)}));
   step(); play();
+  warnOutlines(map).catch(() => note("warning outlines didn't load"));
   $("radarBtn").onclick = () => timer ? (clearInterval(timer), timer = null, $("radarBtn").textContent = "Play") : play();
 }
+// Active NWS warnings and watches in Michigan, drawn on the radar. Storm warnings come with their own outline;
+// winter and flood warnings cover whole counties, so those county shapes are fetched one by one (each fetched once).
+const WARN_COLORS = [[/Tornado/, "#ff2d2d"], [/Severe Thunderstorm/, "#ffa500"], [/Flood/, "#2ee86b"], [/Blizzard|Ice Storm/, "#d24dff"],
+  [/Winter Storm|Lake Effect Snow|Winter Weather/, "#ff69b4"], [/Wind|Gale|Storm Warning/, "#d2b48c"], [/Freeze|Frost|Wind Chill|Extreme Cold/, "#4fc3ff"], [/./, "#ffd400"]];
+async function warnOutlines(map) {
+  const list = (await get("https://api.weather.gov/alerts/active?area=MI&status=actual")).features
+    .filter(f => /Warning|Watch/.test(f.properties.event));
+  const zones = {}, seen = {};
+  for (const f of list) {
+    const ev = f.properties.event, color = WARN_COLORS.find(([re]) => re.test(ev))[1], watch = /Watch/.test(ev);
+    const style = {color, weight: watch ? 2 : 3, dashArray: watch ? "6 5" : null, fill: !watch, fillOpacity: 0.12};
+    let shapes = f.geometry ? [f] : [];
+    if (!f.geometry) for (const z of f.properties.affectedZones.slice(0, 40)) {
+      zones[z] = zones[z] || get(z).catch(() => null);
+      const g = await zones[z];
+      if (g && g.geometry) shapes.push(g);
+    }
+    shapes.forEach(s => L.geoJSON(s, {style, interactive: false}).addTo(map));
+    if (shapes.length) seen[ev] = color;
+  }
+  $("warnKey").innerHTML = Object.entries(seen).map(([ev, c]) => `<span style="color:${c}">&#9632;</span> ${ev}`).join(" &nbsp; ");
+}
+
 function play() { if (matchMedia("(prefers-reduced-motion: reduce)").matches) { fi = frames.length - 1; step(); return; } timer = setInterval(step, 600); $("radarBtn").textContent = "Pause"; }
 function step() {
   frames.forEach((f, i) => f.layer.setOpacity(i === fi ? 0.7 : 0));

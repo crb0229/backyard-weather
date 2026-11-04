@@ -74,20 +74,32 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 #moonLit{font-size:1.5rem}
 .clock{font:600 1.6rem var(--display)}
 .clock b{font:600 1.6rem var(--num);color:var(--accent);margin-left:.8vw}
+/* Themes: daylight (a lifted slate, not white), late-night dim, freezing and alert accents, holiday label */
+:root.day{--bg:#27323d;--panel:#323f4c;--fg:#eef2f5;--muted:#aebbc7;--line:#46545f;--accent:#7cc0ee;--yard:#5ad6a9;--warn:#f4ad5c;--bad:#ff8a80;--cold:#8cc4ff;--feels:#d09ae8;--humid:#c3d05a;--cloud:#9aa6b2;--cloud-fill:rgba(170,182,194,.22);--accent-fill:rgba(124,192,238,.3);--night:rgba(0,0,0,.2)}
+:root.day #radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.95)}
+body{transition:filter 2s}
+body.dim{filter:brightness(.35)}
+body.freezing #nowTemp{color:var(--cold)}
+body.alerting .panel{border:2px solid var(--warn)}
+#holiday{font:600 1.1rem var(--display);margin-left:1vw}
+#issSoon{font:600 1.2rem var(--display);color:var(--yard);margin-left:1vw}
+.iss{width:100%;font-size:1.25rem}
+.iss td{text-align:left;padding:.8vh .6vw}
+.iss .when{font-family:var(--num);white-space:nowrap}
 header button{font:500 .85rem var(--body);background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 10px;margin-left:.6vw}
 header button:focus-visible{outline:2px solid var(--accent)}
 </style>
 <script>window.CHART_FONT = 15; window.HOURS = 10;</script>
 </head>
 <body>
-<header><h1>Brown's Weather Station</h1><span class="clock"><span id="today"></span> <b class="num" id="clock"></b></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span> <button id="musicBtn" type="button">Music: off</button> <button id="nextBtn" type="button" hidden>Next station</button></span></header>
+<header><span><h1 style="display:inline">Brown's Weather Station</h1><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span> <button id="musicBtn" type="button">Music: off</button> <button id="nextBtn" type="button" hidden>Next station</button></span></header>
 <div id="alerts"></div>
 
 <div class="grid">
   <section class="panel left">
     <h2>Radar, KGRR area</h2>
     <div id="radar"></div>
-    <div class="radarbar"><span class="small num" id="radarTime"></span><button id="radarBtn" type="button" hidden>Pause</button></div>
+    <div class="radarbar"><span class="small num" id="radarTime"></span><span class="small" id="warnKey"></span><button id="radarBtn" type="button" hidden>Pause</button></div>
   </section>
 
   <div class="right">
@@ -126,6 +138,11 @@ header button:focus-visible{outline:2px solid var(--accent)}
         </div>
       </div>
       <div class="slide">
+        <div class="slidehead"><h2>Space Station sightings from the yard</h2><span class="dots"></span></div>
+        <table class="iss" id="issTable"><tr><td>Working out passes...</td></tr></table>
+        <p class="small" id="issNote"></p>
+      </div>
+      <div class="slide">
         <div class="slidehead"><h2>Wind, 10 days</h2><span class="dots"></span></div>
         <div class="chart"><canvas id="cWind"></canvas></div>
       </div>
@@ -135,6 +152,7 @@ header button:focus-visible{outline:2px solid var(--accent)}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js"></script>
 <script src="app.js"></script>
 <script>
 // Rotate the detail panel. The 10-day outlook is the home view: 20 seconds, the others 10.
@@ -151,12 +169,90 @@ header button:focus-visible{outline:2px solid var(--accent)}
   next();
 })();
 
+// Themes. app.js calls onData once the station, forecast and alerts are in, before the charts are drawn.
+// Daylight theme between sunrise and sunset; the page reloads every 15 minutes, so it switches within 15 minutes.
+let issPasses = [];
+window.onData = function (latest, model, alerts) {
+  const root = document.documentElement, body = document.body;
+  const nowLocal = new Date().toLocaleString("sv-SE", {timeZone: "America/Detroit"}).replace(" ", "T").slice(0, 16);
+  if (model && model.daily.sunrise) root.classList.toggle("day", nowLocal >= model.daily.sunrise[0] && nowLocal < model.daily.sunset[0]);
+  body.classList.toggle("freezing", !!(latest && latest.temp != null && latest.temp <= 32));
+  body.classList.toggle("alerting", alerts.length > 0);
+  setTimeout(findIssPasses, 500);   // after the charts, so the page draws first
+};
+
+// Holiday label, late-night dim (11 PM to 6 AM) and a small screen nudge every 10 minutes to protect OLED TVs from burn-in.
+function holiday(d) {
+  const m = d.getMonth() + 1, day = d.getDate(), thu = d.getDay() === 4 && m === 11 && day >= 22 && day <= 28;
+  const list = {"1-1": ["Happy New Year", "#e8c547"], "2-14": ["Happy Valentine's Day", "#e0607e"], "3-17": ["Happy St. Patrick's Day", "#3fae5a"],
+    "7-4": ["Happy Fourth of July", "#e05252"], "10-31": ["Happy Halloween", "#f08a24"], "12-24": ["Merry Christmas Eve", "#d64545"],
+    "12-25": ["Merry Christmas", "#d64545"], "12-31": ["Happy New Year's Eve", "#e8c547"]};
+  return thu ? ["Happy Thanksgiving", "#d08a3a"] : list[m + "-" + day];
+}
+(function () {
+  function check() {
+    const local = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Detroit"})), h = local.getHours();
+    document.body.classList.toggle("dim", h >= 23 || h < 6);
+    const hol = holiday(local), el = document.getElementById("holiday");
+    el.textContent = hol ? hol[0] : ""; el.style.color = hol ? hol[1] : "";
+  }
+  check(); setInterval(check, 60000);
+  setInterval(() => { const r = () => Math.round(Math.random() * 8 - 4); document.body.style.transform = `translate(${r()}px,${r()}px)`; }, 600000);
+})();
+
+// Space Station passes, using the orbit data the What's Overhead site refreshes every day.
+// Same math as that app: a pass counts when the station is above 10 degrees, lit by the sun, and the yard's sky is dark.
+async function findIssPasses() {
+  const note = document.getElementById("issNote"), table = document.getElementById("issTable");
+  try {
+    const text = await fetch("/overhead/data/stations.tle", {cache: "no-store"}).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
+    const lines = text.split(/\r?\n/), i = lines.findIndex(l => l.startsWith("1 25544"));
+    const rec = satellite.twoline2satrec(lines[i], lines[i + 1]);
+    const RAD = Math.PI / 180, obs = {latitude: LAT * RAD, longitude: LON * RAD, height: 0.25};
+    const sunAt = date => {   // low-precision sun position, accurate to about 0.01 degree
+      const n = date.getTime() / 864e5 + 2440587.5 - 2451545, L = (280.46 + 0.9856474 * n) % 360, g = ((357.528 + 0.9856003 * n) % 360) * RAD;
+      const lam = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RAD, eps = (23.439 - 4e-7 * n) * RAD;
+      return {x: Math.cos(lam), y: Math.cos(eps) * Math.sin(lam), z: Math.sin(eps) * Math.sin(lam)};
+    };
+    const passes = []; let run = null;
+    for (let t = Date.now(), end = t + 10 * 864e5; t < end; t += 10000) {
+      const date = new Date(t), gmst = satellite.gstime(date), u = sunAt(date);
+      const sunEl = satellite.ecfToLookAngles(obs, satellite.eciToEcf({x: u.x * 1.5e8, y: u.y * 1.5e8, z: u.z * 1.5e8}, gmst)).elevation / RAD;
+      let vis = false, look = null;
+      if (sunEl < -6) {
+        const p = satellite.propagate(rec, date).position;
+        if (p) {
+          look = satellite.ecfToLookAngles(obs, satellite.eciToEcf(p, gmst));
+          const proj = p.x * u.x + p.y * u.y + p.z * u.z, lit = proj >= 0 || Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z - proj * proj) >= 6371;
+          vis = look.elevation > 0 && lit;
+        }
+      } else t += 50000;   // daylight: skip ahead faster
+      if (vis) {
+        const el = look.elevation / RAD, az = look.azimuth / RAD;
+        if (!run) run = {start: t, startAz: az, max: el, end: t, endAz: az};
+        if (el > run.max) run.max = el;
+        run.end = t; run.endAz = az;
+      } else if (run) { if (run.max >= 10) passes.push(run); run = null; }
+    }
+    issPasses = passes;
+    const dir = az => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(az / 45) % 8];
+    const height = el => el >= 60 ? "Nearly overhead" : el >= 30 ? "Halfway up the sky" : "Low in the sky";
+    const when = t => new Date(t).toLocaleString("en-US", {timeZone: "America/Detroit", weekday: "short", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit"}).replace(",", "");
+    table.innerHTML = passes.length ? passes.slice(0, 5).map(r => `<tr><td class="when">${when(r.start)}</td><td>${dir(r.startAz)} to ${dir(r.endAz)}</td><td>${height(r.max)}</td><td class="num">${Math.max(1, Math.round((r.end - r.start) / 60000))} min</td></tr>`).join("")
+      : "<tr><td>No visible passes in the next 10 days. The station is up there, but it's either in daylight or in Earth's shadow when it crosses.</td></tr>";
+    note.textContent = "Times are when it first appears. Looks like a bright, steady star moving across the sky, no blinking.";
+  } catch (e) { table.innerHTML = "<tr><td>Couldn't work out passes right now.</td></tr>"; }
+}
+
 // Date and time in the header, Michigan time, refreshed every 15 seconds.
 (function () {
   function tick() {
     const now = new Date(), tz = "America/Detroit";
     document.getElementById("today").textContent = now.toLocaleDateString("en-US", {timeZone: tz, weekday: "long", month: "long", day: "numeric", year: "numeric"});
     document.getElementById("clock").textContent = now.toLocaleTimeString("en-US", {timeZone: tz, hour: "numeric", minute: "2-digit"});
+    const soon = issPasses.find(r => r.end > now.getTime() && r.start - now.getTime() < 15 * 60000);
+    const mins = soon ? Math.round((soon.start - now.getTime()) / 60000) : 0;
+    document.getElementById("issSoon").textContent = !soon ? "" : mins > 0 ? `Space Station in ${mins} min` : "Space Station overhead now";
   }
   tick(); setInterval(tick, 15000);
 })();
