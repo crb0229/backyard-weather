@@ -69,6 +69,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 <main>
   <header><h1>Caledonia Backyard Weather</h1><span class="small" id="updated"></span></header>
 
+  <p class="small" id="problems" hidden></p>
   <div id="alerts"></div>
 
   <section class="panel">
@@ -146,6 +147,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 const TZ = "America/Detroit";
 let LAT = 42.789, LON = -85.516;
 const $ = id => document.getElementById(id);
+const nz = (a, b) => a == null ? b : a;   // older TV browsers can't read the newer shorthand for this
 const get = u => fetch(u, {cache: "no-store"}).then(r => { if (!r.ok) throw new Error(r.status + " " + u); return r.json(); });
 const f0 = v => v == null || v === "" ? "--" : Math.round(v);
 const fmt = new Intl.DateTimeFormat("en-CA", {timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23"});
@@ -161,7 +163,7 @@ function yard(v, t, val) {          // t = "YYYY-MM-DDTHH", local time
   if (!c || val == null) return null;
   if (!c.on) return val;            // correction didn't beat the model at this yard, so use the model as-is
   const m = +t.slice(5, 7), h = +t.slice(11, 13);
-  const a = c.table[`${season(m)}-${h}`] ?? c.table[`any-${h}`];
+  const a = nz(c.table[`${season(m)}-${h}`], c.table[`any-${h}`]);
   if (a == null) return val;
   return v === "wind" ? val * a : val + a;
 }
@@ -171,7 +173,7 @@ async function main() {
   corr = correction;
   if (latest) { LAT = latest.lat; LON = latest.lon; showNow(latest); }
   else $("nowAge").textContent = "Station data not collected yet.";
-  radar();
+  try { radar(); } catch (e) { note("radar map didn't load"); }
   const ptP = get(`https://api.weather.gov/points/${LAT.toFixed(4)},${LON.toFixed(4)}`).then(r => r.properties);
   const nwsGet = k => ptP.then(pt => get(pt[k]));   // each NWS piece loads on its own, so one failure doesn't blank the page
   const om = get("https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
@@ -186,7 +188,7 @@ async function main() {
   const [alerts, daily, hourly, grid, model] = results.map(r => r.status === "fulfilled" ? r.value : null);
   if (alerts) showAlerts(alerts.features);
   if (daily) showDays(daily.properties.periods);
-  if (model) { showRain(model, latest); showEvenings(model); showTenDay(model); }
+  if (model) { showRain(model, latest); showEvenings(model); try { showTenDay(model); } catch (e) { note("charts didn't load"); } }
   showHourly(hourly && hourly.properties.periods, model);
   showLow(daily && daily.properties.periods, model);
   if (grid) showSnow(grid.properties, model);
@@ -197,8 +199,8 @@ async function main() {
 function showNow(s) {
   $("nowTemp").textContent = f0(s.temp) + "°";
   const rows = [["Feels", f0(s.feels) + "°"], ["Dew pt", f0(s.dew) + "°"], ["Wind", `${compass(s.winddir)} ${f0(s.wind)}`],
-    ["Gust", `${f0(s.gust)} (max ${f0(s.maxgust_today)})`], ["Rain today", (s.rain_today ?? 0).toFixed(2) + '"'],
-    ["Rain rate", (s.rain_rate ?? 0).toFixed(2) + '"/h'], ["Humidity", f0(s.humidity) + "%"], ["Pressure", s.pressure ? s.pressure.toFixed(2) : "--"]];
+    ["Gust", `${f0(s.gust)} (max ${f0(s.maxgust_today)})`], ["Rain today", nz(s.rain_today, 0).toFixed(2) + '"'],
+    ["Rain rate", nz(s.rain_rate, 0).toFixed(2) + '"/h'], ["Humidity", f0(s.humidity) + "%"], ["Pressure", s.pressure ? s.pressure.toFixed(2) : "--"]];
   $("nowKv").innerHTML = rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join("");
   const mins = Math.round((Date.now() - new Date(s.time)) / 60000);
   $("nowAge").textContent = `Station reading from ${mins} min ago. Readings refresh about every 15 min.`;
@@ -253,7 +255,7 @@ function showHourly(nws, m) {
     row("Wind, my yard", c => { const y = yard("wind", c.t, h.wind_speed_10m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
     row("Gusts (model)", c => Math.round(h.wind_gusts_10m[c.i])) +
     row("Cloud cover", c => h.cloud_cover[c.i] + "%") +
-    row("Rain chance", c => (c.n ? c.n.probabilityOfPrecipitation.value ?? 0 : h.precipitation_probability[c.i]) + "%");
+    row("Rain chance", c => (c.n ? nz(c.n.probabilityOfPrecipitation.value, 0) : h.precipitation_probability[c.i]) + "%");
 }
 
 function showLow(periods, m) {
@@ -265,7 +267,7 @@ function showLow(periods, m) {
   const ys = tonight.map(x => yard("temp", x.t, h.temperature_2m[x.i])).filter(v => v != null);
   const low = ys.length ? Math.min(...ys) : null;
   $("lowYard").textContent = low == null ? "no correction yet" : Math.round(low) + "°";
-  const ref = low ?? (night && night.temperature);
+  const ref = nz(low, night && night.temperature);
   $("frostFlag").innerHTML = ref == null ? "" : ref <= 32 ? `<span class="flag freeze">Freeze</span>` : ref <= 36 ? `<span class="flag frost">Frost possible</span>` : `<span class="flag ok">No frost</span>`;
 }
 
@@ -283,7 +285,7 @@ function showSnow(g, m) {
 
 function showEvenings(m) {
   const h = m.hourly, days = {};
-  h.time.forEach((t, i) => { const hh = +t.slice(11, 13); if (hh >= 19 && localMs(t) > Date.now() - 3600000) (days[t.slice(0, 10)] ||= []).push(h.cloud_cover[i]); });
+  h.time.forEach((t, i) => { const hh = +t.slice(11, 13); if (hh >= 19 && localMs(t) > Date.now() - 3600000) (days[t.slice(0, 10)] = days[t.slice(0, 10)] || []).push(h.cloud_cover[i]); });
   $("evenings").innerHTML = Object.entries(days).slice(0, 6).map(([d, v]) => {
     const avg = v.reduce((a, b) => a + b, 0) / v.length, cls = avg < 25 ? 0 : avg < 60 ? 1 : 2;
     const name = new Date(d + "T12:00").toLocaleDateString("en-US", {weekday: "short"});
@@ -300,11 +302,11 @@ function showScore() {
   const names = {temp: "Temperature", dew: "Dew point", wind: "Wind speed"}, u = {temp: "°", dew: "°", wind: " mph"};
   let rows = `<tr><th>Variable</th><td>Correction</td><td>Raw model miss</td><td>Corrected miss</td><td>NWS miss</td><td>History</td></tr>`;
   for (const [v, c] of Object.entries(corr.vars)) {
-    rows += `<tr><th>${names[v]}</th><td>${c.on ? "<b class='yard'>On</b>" : "Off"}</td><td class="num">${c.raw_error ?? "--"}${c.raw_error != null ? u[v] : ""}</td><td class="num">${c.corrected_error ?? "--"}${c.corrected_error != null ? u[v] : ""}</td><td class="num">${c.nws_error != null ? c.nws_error + u[v] : `${c.nws_days || 0} of 14 days`}</td><td class="num">${c.days} days</td></tr>`;
+    rows += `<tr><th>${names[v]}</th><td>${c.on ? "<b class='yard'>On</b>" : "Off"}</td><td class="num">${nz(c.raw_error, "--")}${c.raw_error != null ? u[v] : ""}</td><td class="num">${nz(c.corrected_error, "--")}${c.corrected_error != null ? u[v] : ""}</td><td class="num">${c.nws_error != null ? c.nws_error + u[v] : `${c.nws_days || 0} of 14 days`}</td><td class="num">${c.days} days</td></tr>`;
     if (v === "temp" && c.low_nights) rows += `<tr><th>Overnight low</th><td></td><td class="num">${c.low_raw_error}°</td><td class="num">${c.low_corrected_error}°</td><td></td><td class="num">${c.low_nights} nights</td></tr>`;
   }
   $("score").innerHTML = rows;
-  $("scoreNote").textContent = `"Miss" is the average error, in the most recent ${corr.vars.temp?.test_days || 30} days, against what the station recorded. Those days are held out when building the correction, so it is a fair test. A correction turns off by itself when it stops beating the raw model. NWS comparison starts after 14 days of our own logging. Rebuilt ${new Date(corr.updated).toLocaleString("en-US", {timeZone: TZ, month: "short", day: "numeric", hour: "numeric", minute: "2-digit"})}.`;
+  $("scoreNote").textContent = `"Miss" is the average error, in the most recent ${(corr.vars.temp && corr.vars.temp.test_days) || 30} days, against what the station recorded. Those days are held out when building the correction, so it is a fair test. A correction turns off by itself when it stops beating the raw model. NWS comparison starts after 14 days of our own logging. Rebuilt ${new Date(corr.updated).toLocaleString("en-US", {timeZone: TZ, month: "short", day: "numeric", hour: "numeric", minute: "2-digit"})}.`;
 }
 
 // ---------- 10-day outlook ----------
@@ -354,7 +356,7 @@ function showTenDay(m) {
         y: {grid: {color: c("--line")}, ticks: {color: c("--muted"), font: {size: 10}}, ...y}, ...extra}}});
   const mk = (id, cfg, datasets) => { charts.push(new Chart($(id), {...cfg, data: {labels: T, datasets}})); };
   charts.forEach(ch => ch.destroy()); charts.length = 0;
-  const dew = T.map((t, i) => yard("dew", t, h.dew_point_2m[i]) ?? h.dew_point_2m[i]);
+  const dew = T.map((t, i) => nz(yard("dew", t, h.dew_point_2m[i]), h.dew_point_2m[i]));
   const flat = v => T.map(() => v);
 
   mk("cTemp", base({}), [
@@ -400,7 +402,9 @@ function step() {
   fi = (fi + 1) % frames.length;
 }
 
-main().catch(e => { $("rainCall").textContent = "Could not load forecast: " + e.message; });
+function note(msg) { const p = $("problems"); p.hidden = false; p.textContent += (p.textContent ? "; " : "Problems: ") + msg; }
+window.addEventListener("error", e => note(e.message));
+main().catch(e => { note(e.message); $("rainCall").textContent = "Could not load forecast"; });
 setTimeout(() => location.reload(), 15 * 60000);   // refresh every 15 min so it can stay open on a phone or TV
 </script>
 </body>
