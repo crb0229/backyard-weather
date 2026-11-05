@@ -296,6 +296,31 @@ def flag_has_stripes_and_stars(c):
     no_errors(p)
 
 
+# ---------- Task 7: Death Star on May the 4th ----------
+
+MOON = "[document.querySelectorAll('#moonPic *').length, !!document.querySelector('.moonPhoto'), document.getElementById('moonName').textContent.trim(), document.querySelectorAll('#holPic svg *').length]"
+
+
+@case
+def deathstar_replaces_moon(c):
+    p = c.page(date="2026-05-04", wait=6000)
+    n, photo, name, hdr = p.evaluate(MOON)
+    assert n > 100, f"moon slide has {n} shapes, expected the Death Star (over 100)"
+    assert not photo, "NASA moon photo still shown"
+    assert name and name != "--", "moon phase name missing"
+    assert hdr > 100, f"header Death Star has {hdr} shapes"
+    p.evaluate("document.querySelectorAll('#rotor .slide').forEach((s, i) => s.classList.toggle('on', i === 3))")
+    p.wait_for_timeout(1200)
+    p.locator("#rotor").screenshot(path=os.path.join(c.out, "deathstar-moon.png"))
+    no_errors(p)
+    p.click("#themeBtn")
+    p.reload()
+    p.wait_for_timeout(6000)
+    n, photo, name, hdr = p.evaluate(MOON)
+    assert n <= 2 or photo, f"Theme: Off should bring the normal moon back (got {n} shapes)"
+    no_errors(p)
+
+
 def main():
     out, flt = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else "")
     os.makedirs(out, exist_ok=True)

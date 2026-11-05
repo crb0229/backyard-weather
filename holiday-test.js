@@ -119,9 +119,21 @@
       svg.setAttribute("viewBox", "0 0 100 100");
       pic.appendChild(svg);
       if (theme.picture.draw === "flag") root.ART.drawFlag(svg, 0.55, 0);
-      else root.ART.drawDeathStar(svg, 1, true, "hdr");
+      else { const m = moonPhase(new Date()); root.ART.drawDeathStar(svg, m.lit, m.waxing, "hdr"); }
     }
   }
+
+  // Tonight's moon phase, the same calculation as the moon on the "Sun and moon" slide (app-test.js showSunMoon)
+  function moonPhase(now) {
+    const P = 29.530588853, age = (((now - Date.UTC(2000, 0, 6, 18, 14)) / 864e5) % P + P) % P;
+    return {lit: (1 - Math.cos(2 * Math.PI * age / P)) / 2, waxing: age < P / 2};
+  }
+  // May the 4th: the moon slide shows the Death Star instead of the moon, in the same phase
+  root.HOLIDAY_MOON = (svg, lit, waxing) => {
+    if (typeof document === "undefined" || !document.documentElement.classList.contains("hol-may4")) return false;
+    root.ART.drawDeathStar(svg, lit, waxing, "moon");
+    return true;
+  };
 
   // Keep the header on one line inside the screen: shrink a long or wide greeting step by step (not below 1.05rem).
   // If it still does not fit, hide the "Updated" time while the theme is on; the page reloads every 15 minutes anyway.
@@ -170,7 +182,7 @@
     root.ART.playIntro(theme);
   }
 
-  const H = {THEMES, holidayFor, dayKey, isNight, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply, toggle, maybeIntro, onThemeOn};
+  const H = {THEMES, holidayFor, dayKey, isNight, moonPhase, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply, toggle, maybeIntro, onThemeOn};
   if (typeof window !== "undefined") {
     H.store = safeStore((() => { try { return window.localStorage; } catch (e) { return null; } })());
     H.session = safeStore((() => { try { return window.sessionStorage; } catch (e) { return null; } })());
