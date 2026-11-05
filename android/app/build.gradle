@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'io.github.crb0229.backyardweather'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.github.crb0229.backyardweather'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // A fixed signing key kept in the repo, so a rebuilt app installs over the old one.
+    // It only signs this personal, sideloaded app.
+    signingConfigs {
+        tv {
+            storeFile file('tv.keystore')
+            storePassword 'backyard'
+            keyAlias 'tv'
+            keyPassword 'backyard'
+        }
+    }
+    lint {
+        checkReleaseBuilds false   // a personal sideloaded app; don't let store-publishing checks stop the build
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.tv
+        }
+    }
+}
