@@ -90,6 +90,10 @@ for _id, (_date, _bg, _greet, _font) in MAIN.items():
               const i = h.querySelector('img'); if (i) return i.complete && i.naturalWidth > 0;
               const s = h.querySelector('svg'); return !!s && s.childNodes.length > 0; })()""")
             assert ok, "#holPic has no loaded picture"
+            hdr = p.evaluate("document.querySelector('header').offsetHeight")
+            assert hdr <= 86, f"header grew to {hdr}px (two lines?); must stay one line, at most 8vh"
+            over = p.evaluate("Math.max(...[...document.querySelectorAll('header > span')].map(e => e.getBoundingClientRect().right)) - innerWidth")
+            assert over <= 0, f"header runs {over:.0f}px off the right edge"
             no_errors(p)
             c.shot(p, f"theme-{i}")
         t.__name__ = f"theme_{i}"

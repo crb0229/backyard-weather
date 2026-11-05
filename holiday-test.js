@@ -99,7 +99,10 @@
       rootEl.classList.add("hol-on", "hol-" + theme.id);
       if (!link) { link = document.createElement("link"); link.id = "holFont"; link.rel = "stylesheet"; document.head.appendChild(link); }
       link.href = `https://fonts.googleapis.com/css2?family=${theme.font.css}&display=swap`;
+      const fam = theme.font.family;   // re-measure once the holiday font itself has arrived (it is wider than the fallback)
+      link.onload = () => { if (document.fonts) document.fonts.load(`1em "${fam}"`).then(fitHeader, fitHeader); };
     } else if (link) link.remove();
+    setTimeout(fitHeader, 0);
     el.textContent = greeting;
     el.style.color = full ? "" : (theme && theme.color) || "";
     el.style.fontFamily = full ? `"${theme.font.family}", var(--display)` : "";
@@ -118,6 +121,20 @@
       if (theme.picture.draw === "flag") root.ART.drawFlag(svg, 0.55, 0);
       else root.ART.drawDeathStar(svg, 1, true, "hdr");
     }
+  }
+
+  // Keep the header on one line inside the screen: shrink a long or wide greeting step by step (not below 1.05rem).
+  // If it still does not fit, hide the "Updated" time while the theme is on; the page reloads every 15 minutes anyway.
+  function fitHeader() {
+    const el = document.getElementById("holiday"), upd = document.getElementById("updated");
+    if (!el || !upd) return;
+    el.style.fontSize = ""; upd.style.display = "";
+    if (!document.documentElement.classList.contains("hol-on")) return;
+    const over = () => Math.max(...[...document.querySelectorAll("header > span")].map(e => e.getBoundingClientRect().right)) > innerWidth;
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    const min = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.05;
+    while (over() && size > min) { size = Math.max(min, size - 1); el.style.fontSize = size + "px"; }
+    if (over()) upd.style.display = "none";
   }
 
   // The remote's OK button on "Theme: On/Off". Off lasts for this holiday; switching back on replays the startup animation.
@@ -157,6 +174,11 @@
   if (typeof window !== "undefined") {
     H.store = safeStore((() => { try { return window.localStorage; } catch (e) { return null; } })());
     H.session = safeStore((() => { try { return window.sessionStorage; } catch (e) { return null; } })());
+    window.addEventListener("resize", () => fitHeader());
+    // Refit whenever header text changes: the update time and the clock are filled in after the weather loads
+    let queued = false;
+    const refit = () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; fitHeader(); }); } };
+    window.addEventListener("DOMContentLoaded", () => { const hd = document.querySelector("header"); if (hd) new MutationObserver(refit).observe(hd, {childList: true, subtree: true, characterData: true}); });
   }
   if (typeof module !== "undefined" && module.exports) module.exports = H;
   root.HOLIDAY = H;   // one shared object, so hooks set later (onThemeOn) are the ones the button calls

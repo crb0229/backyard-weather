@@ -89,6 +89,10 @@ body.alerting .panel{border:2px solid var(--warn)}
 #holPic{display:inline-block;height:4.2rem;width:4.2rem;vertical-align:middle;margin:-1.2rem 0 -1rem 1vw}
 #holPic:empty{display:none}
 #holPic img,#holPic svg{width:100%;height:100%;object-fit:contain;display:block}
+:root.hol-on #holiday,:root.hol-on header>span{white-space:nowrap}   /* the greeting, clock and update time never wrap the header onto a second line */
+:root.hol-on #holiday{margin-right:1.5vw}   /* a clear gap before the date */
+:root.hol-july4 #holiday{font-size:1.45rem}   /* wide fonts or long greetings */
+:root.hol-may4 #holiday{font-size:1.25rem;letter-spacing:.04em}
 #holPic.hol-glow img{animation:holGlow 1.6s ease-in-out infinite}   /* Halloween: the pumpkin glows like a candle during the startup animation */
 @keyframes holGlow{0%,100%{filter:drop-shadow(0 0 4px rgba(255,150,50,.35))}50%{filter:drop-shadow(0 0 16px rgba(255,160,60,.85)) brightness(1.12)}}
 #holPic.hol-hop{animation:holHop 3.2s ease-out}   /* Easter: the bunny hops in from the left and sits */
