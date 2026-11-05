@@ -36,7 +36,8 @@ h2{font:600 .9rem var(--display);text-transform:uppercase;letter-spacing:.1em;co
 .top{display:grid;grid-template-columns:auto 1fr;gap:1vh 2vw;align-items:center}
 .big{font:600 5rem/1 var(--num)}
 #nowKv{grid-template-columns:repeat(4,auto);justify-content:start;column-gap:1.4vw}
-#nowAge{display:none}
+#nowAge{display:none;margin:.4vh 0 0}
+body.stale #nowAge{display:block;color:var(--warn)}   /* shown only when the reading is more than 30 minutes old */
 .tenday .num:first-of-type{font-size:0}   /* hides the "|" between high and low */
 .tenday .num:first-of-type span{display:block;font-size:.85rem}
 .kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3vh 1.2vw;font-size:1.05rem}
@@ -99,7 +100,8 @@ body.alerting .panel{border:2px solid var(--warn)}
 header button{font:500 .85rem var(--body);background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 10px;margin-left:.6vw}
 header button:focus-visible{outline:2px solid var(--accent)}
 </style>
-<script>window.CHART_FONT = Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize) * .9);   // chart text matches the page text size window.HOURS = 9; window.RADAR_ROTATE = true;</script>
+<script>window.CHART_FONT = Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize) * .9);   // chart text matches the page text size
+window.HOURS = 9; window.RADAR_ROTATE = true;</script>
 </head>
 <body>
 <header><span><h1 style="display:inline">Local Weather</h1> <button id="placeBtn" type="button"></button><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
@@ -190,6 +192,10 @@ window.onData = function (latest, model, alerts) {
   if (model && model.daily.sunrise) root.classList.toggle("day", nowLocal >= model.daily.sunrise[0] && nowLocal < model.daily.sunset[0]);
   body.classList.toggle("freezing", !!(latest && latest.temp != null && latest.temp <= 32));
   body.classList.toggle("alerting", alerts.length > 0);
+  // Old reading: say how old, so a stalled station or data job doesn't pass for current conditions
+  const mins = latest && latest.time ? Math.round((Date.now() - Date.parse(latest.time)) / 60000) : 0;
+  body.classList.toggle("stale", mins > 30);
+  if (mins > 30) document.getElementById("nowAge").textContent = `${latest.source ? "Reading" : "Station reading"} is ${mins < 120 ? mins + " min" : Math.floor(mins / 60) + " h " + mins % 60 + " min"} old`;
   setTimeout(findIssPasses, 500);   // after the charts, so the page draws first
 };
 

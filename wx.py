@@ -1,8 +1,9 @@
 """Home weather data collector.
 
 Commands (run by GitHub Actions, not by hand):
-  python wx.py latest    - current station reading -> data/latest.json
-  python wx.py daily     - add yesterday's data, log NWS forecast, rebuild correction + scorecard
+  python wx.py latest    - current station reading -> data/latest.json, plus the daily work if it's due
+  python wx.py daily     - same as latest (the daily work runs once per day, from whichever run comes first after 4 AM)
+                           daily work: add yesterday's data, log NWS forecast, rebuild correction + scorecard
   python wx.py backfill  - pull station history and past model forecasts back to START_DATE
 
 Keys come from environment variables AMBIENT_API_KEY and AMBIENT_APP_KEY (GitHub secrets).
@@ -330,6 +331,20 @@ def cmd_daily():
     add_model_history((today - timedelta(days=3)).isoformat(), (today - timedelta(days=1)).isoformat())
     log_nws_tomorrow()
     cmd_rebuild()
+    done = read_json("correction.json")
+    done["daily_done"] = datetime.now(TZ).date().isoformat()   # marks today's daily work as finished
+    write_json("correction.json", done)
+
+
+def daily_due():
+    """GitHub skips many scheduled runs, so any run after 4 AM Michigan time does the daily work if it hasn't been done today.
+    Whichever run gets there first does it; a step that fails is retried by the next run."""
+    now = datetime.now(TZ)
+    return now.hour >= 4 and (read_json("correction.json") or {}).get("daily_done") != now.date().isoformat()
+
+
+def cmd_scheduled():
+    cmd_daily() if daily_due() else cmd_latest()
 
 
 def cmd_backfill():
@@ -345,4 +360,5 @@ def cmd_backfill():
 
 
 if __name__ == "__main__":
-    {"latest": cmd_latest, "daily": cmd_daily, "backfill": cmd_backfill, "rebuild": cmd_rebuild}[sys.argv[1]]()
+    # Both schedules (15-minute and daily) run the same check; the daily work happens once per day either way
+    {"latest": cmd_scheduled, "daily": cmd_scheduled, "backfill": cmd_backfill, "rebuild": cmd_rebuild}[sys.argv[1]]()
