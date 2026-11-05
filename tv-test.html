@@ -103,6 +103,8 @@ header button:focus-visible{outline:2px solid var(--accent)}
 #testTag{font:700 .9rem var(--display);color:#000;background:var(--warn);border-radius:4px;padding:1px 8px;margin-left:.8vw;vertical-align:.35em}
 #summary{font:600 1.7rem/1.2 var(--display);color:var(--fg)}
 #summary:empty{display:none}
+.strip{grid-template-columns:1fr 1fr}   /* rain moved to the summary line, two columns left */
+.strip .kv{grid-template-columns:auto auto;justify-content:start;column-gap:2vw}   /* keep each number next to its label */
 .small,.sunmoon .small,.tenday,.eve div{font-size:1.25rem}   /* nothing that matters below about 2.4vh */
 table{font-size:1.25rem}
 .kv{font-size:1.25rem}
@@ -146,7 +148,7 @@ window.HOURS = 9; window.RADAR_ROTATE = true;</script>
       <div class="big" id="nowTemp">--</div>
       <div><h2 id="nowTitle">Now at the station</h2><div class="kv" id="nowKv"></div><div id="todayHiLo"></div><p class="small" id="nowAge"></p></div>
       <div class="strip">
-        <div><h2>Rain and storms</h2><div class="callout" id="rainCall">Checking...</div></div>
+        <div hidden><h2>Rain and storms</h2><div class="callout" id="rainCall">Checking...</div></div>   <!-- TEST: shown in the summary line instead; kept hidden because the summary reads it -->
         <div><h2>Tonight's low</h2><div class="kv"><span>NWS</span><b id="lowNws">--</b><span class="yard">Station</span><b class="yard" id="lowYard">--</b></div><span id="frostFlag"></span></div>
         <div><h2>Next 48 h</h2><div class="kv"><span>Snow</span><b id="snowAmt">--</b><span>Ice</span><b id="iceAmt">--</b></div></div>
       </div>
