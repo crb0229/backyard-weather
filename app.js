@@ -407,20 +407,34 @@ function rotateRadar(map) {
     const s = window.SUNTIMES, now = new Date().toLocaleString("sv-SE", {timeZone: TZ}).slice(11, 16);
     return !!s && mins(now) > mins(s[0]) + 60 && mins(now) < mins(s[1]) - 60;
   };
+  // Crossfade: fade the map out, switch while it's hidden, wait for the new images (2 s at most), then fade back in.
+  const box = document.getElementById("radar");
+  const loaded = layer => Promise.race([new Promise(r => layer.once("load", r)), new Promise(r => setTimeout(r, 2000))]);
   setInterval(() => {
-    const views = [["Radar, local", 8], [STATION ? "Radar, Great Lakes" : "Radar, region", 6]].concat(daylight() ? [["Satellite clouds", 6, true]] : []);
-    v = (v + 1) % views.length;
-    const [title, zoom, isSat] = views[v];
-    map.setView([LAT, LON], zoom, {animate: false});
-    if (sat) { map.removeLayer(sat); sat = null; }
-    $("radarTitle").textContent = title;
-    if (isSat) {
-      clearInterval(timer); timer = null;
-      frames.forEach(f => f.layer.setOpacity(0));
-      sat = L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch02/{z}/{x}/{y}.png?t=${Date.now()}`,
-        {opacity: 0.75, attribution: "IEM GOES"}).addTo(map);
-      $("radarTime").textContent = "Latest";
-    } else if (!timer) play();
+    box.style.transition = "opacity .6s ease-in";
+    box.style.opacity = 0;
+    setTimeout(() => {
+      const views = [["Radar, local", 8], [STATION ? "Radar, Great Lakes" : "Radar, region", 6]].concat(daylight() ? [["Satellite clouds", 6, true]] : []);
+      v = (v + 1) % views.length;
+      const [title, zoom, isSat] = views[v];
+      if (sat) { map.removeLayer(sat); sat = null; }
+      let ready;
+      if (isSat) {
+        clearInterval(timer); timer = null;
+        frames.forEach(f => f.layer.setOpacity(0));
+        sat = L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch02/{z}/{x}/{y}.png?t=${Date.now()}`,
+          {opacity: 0.75, attribution: "IEM GOES"});
+        ready = loaded(sat);
+        sat.addTo(map);
+        $("radarTime").textContent = "Latest";
+      } else {
+        ready = loaded(frames[frames.length - 1].layer);
+        if (!timer) play();
+      }
+      map.setView([LAT, LON], zoom, {animate: false});
+      $("radarTitle").textContent = title;
+      ready.then(() => { box.style.transition = "opacity .8s ease-out"; box.style.opacity = 1; });
+    }, 650);
   }, 20000);
 }
 
