@@ -329,7 +329,10 @@ def cmd_daily():
     add_station_history((datetime.now(timezone.utc) - timedelta(days=2)).date().isoformat())
     today = datetime.now(timezone.utc).date()
     add_model_history((today - timedelta(days=3)).isoformat(), (today - timedelta(days=1)).isoformat())
-    log_nws_tomorrow()
+    try:
+        log_nws_tomorrow()
+    except Exception as e:   # an NWS outage loses one day of the NWS log but must not block the rebuild
+        print(f"NWS forecast log skipped: {e}", file=sys.stderr)
     cmd_rebuild()
     done = read_json("correction.json")
     done["daily_done"] = datetime.now(TZ).date().isoformat()   # marks today's daily work as finished

@@ -22,7 +22,8 @@ let corr = null;
 function yard(v, t, val) {          // t = "YYYY-MM-DDTHH", local time
   const c = corr && corr.vars[v];
   if (!STATION) return val;          // another location: plain model forecast, no station correction
-  if (!c || val == null) return null;
+  if (val == null) return null;
+  if (!c) return val;               // correction file didn't load: show the plain model rather than blanks
   if (!c.on) return val;            // correction didn't beat the model at this yard, so use the model as-is
   const m = +t.slice(5, 7), h = +t.slice(11, 13);
   const a = nz(c.table[`${season(m)}-${h}`], c.table[`any-${h}`]);
