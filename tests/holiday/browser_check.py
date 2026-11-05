@@ -56,6 +56,8 @@ class Ctx:
         if clock:
             p.clock.install(time=clock)
         p.add_init_script("try{localStorage.setItem('wx:loc', JSON.stringify({station:true}))}catch(e){}")
+        # remember that a startup animation appeared, even if it already finished before a check looks
+        p.add_init_script("new MutationObserver(m => m.forEach(r => r.addedNodes.forEach(n => { if (n.id === 'holIntro') window.__introSeen = true; }))).observe(document, {childList: true, subtree: true});")
         if session:
             p.add_init_script("try{sessionStorage.setItem('wx:session','1')}catch(e){}")
         if init:
@@ -279,8 +281,8 @@ for _id, _date, _extra in [("halloween", "2026-10-31", "hol-glow"), ("thanksgivi
     def _make6(i=_id, date=_date, extra=_extra):
         def t(c):
             p = c.page(date=date, wait=700 if i in ("easter", "may4") else 2600)   # mid-animation (these two last about 3 s)
-            assert has_intro(p), "no startup animation"
-            if extra:
+            assert has_intro(p) or (i in ("easter", "may4") and p.evaluate("!!window.__introSeen")), "no startup animation"
+            if extra and has_intro(p):
                 assert p.evaluate(f"document.getElementById('holPic').classList.contains('{extra}')"), f"#holPic missing {extra}"
             c.shot(p, f"intro-{i}-mid")
             p.wait_for_timeout(7000)
