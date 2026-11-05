@@ -87,6 +87,9 @@ body.alerting .panel{border:2px solid var(--warn)}
 #issSoon{font:600 1.2rem var(--display);color:var(--yard);margin-left:1vw}
 .iss{width:100%;font-size:1.25rem}
 .iss td{text-align:left;padding:.8vh .6vw}
+.issPic{position:relative;height:23vh;flex:none;border-radius:8px;overflow:hidden}
+.issPic img{width:100%;height:100%;object-fit:cover;object-position:center 22%;display:block}
+.issPic span{position:absolute;right:8px;bottom:5px;font-size:.7rem;color:#fff;opacity:.75}
 .iss .when{font-family:var(--num);white-space:nowrap}
 #placeBtn{font-size:1.15rem;vertical-align:.25em}
 #radar.leaflet-container{background:var(--bg)}   /* dark, not grey, while map pieces load */
@@ -143,6 +146,7 @@ header button:focus-visible{outline:2px solid var(--accent)}
       </div>
       <div class="slide">
         <div class="slidehead"><h2>Space Station sightings from home</h2><span class="dots"></span></div>
+        <div class="issPic"><img src="https://images-assets.nasa.gov/image/iss056e201248/iss056e201248~medium.jpg" alt="" onerror="this.parentNode.remove()"><span>Photo: NASA</span></div>
         <table class="iss" id="issTable"><tr><td>Working out passes...</td></tr></table>
         <p class="small" id="issNote"></p>
       </div>
@@ -325,7 +329,7 @@ async function findIssPasses() {
     const dir = az => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(az / 45) % 8];
     const height = el => el >= 60 ? "Nearly overhead" : el >= 30 ? "Halfway up the sky" : "Low in the sky";
     const when = t => new Date(t).toLocaleString("en-US", {timeZone: TZ, weekday: "short", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit"}).replace(",", "");
-    table.innerHTML = passes.length ? passes.slice(0, 5).map(r => `<tr><td class="when">${when(r.start)}</td><td>${dir(r.startAz)} to ${dir(r.endAz)}</td><td>${height(r.max)}</td><td class="num">${Math.max(1, Math.round((r.end - r.start) / 60000))} min</td></tr>`).join("")
+    table.innerHTML = passes.length ? passes.slice(0, 4).map(r => `<tr><td class="when">${when(r.start)}</td><td>${dir(r.startAz)} to ${dir(r.endAz)}</td><td>${height(r.max)}</td><td class="num">${Math.max(1, Math.round((r.end - r.start) / 60000))} min</td></tr>`).join("")
       : "<tr><td>No visible passes in the next 10 days. The station is up there, but it's either in daylight or in Earth's shadow when it crosses.</td></tr>";
     note.textContent = "Times are when it first appears. Looks like a bright, steady star moving across the sky, no blinking.";
   } catch (e) { table.innerHTML = "<tr><td>Couldn't work out passes right now.</td></tr>"; }
