@@ -39,7 +39,7 @@ class Ctx:
     def __init__(self, browser, out):
         self.browser, self.out = browser, out
 
-    def page(self, date=None, clock=None, init=None, block=None, session=False, reduced=False):
+    def page(self, date=None, clock=None, init=None, block=None, session=False, reduced=False, wait=2500):
         """Open tv-test.html. clock: local datetime to freeze the page clock at (it still runs).
         init: JS run before page scripts. block: URL glob answered with 404. session: pretend a reload (session flag set)."""
         ctx = self.browser.new_context(viewport={"width": 1920, "height": 1080}, reduced_motion="reduce" if reduced else "no-preference")
@@ -56,7 +56,7 @@ class Ctx:
         if block:
             p.route(block, lambda r: r.fulfill(status=404, body=""))
         p.goto(f"{BASE}/tv-test.html" + (f"?date={date}" if date else ""))
-        p.wait_for_timeout(2500)
+        p.wait_for_timeout(wait)
         return p
 
     def shot(self, p, name):
@@ -258,6 +258,37 @@ def intro_newyear_preview(c):
     assert has_intro(p)
     p.wait_for_timeout(1500)
     c.shot(p, "intro-newyear-4s")
+    no_errors(p)
+
+
+# ---------- Task 6: remaining startup animations and the waving flag ----------
+
+for _id, _date, _extra in [("halloween", "2026-10-31", "hol-glow"), ("thanksgiving", "2026-11-26", None),
+                           ("july4", "2026-07-04", None), ("easter", "2026-04-05", "hol-hop"), ("may4", "2026-05-04", None)]:
+    def _make6(i=_id, date=_date, extra=_extra):
+        def t(c):
+            p = c.page(date=date, wait=700 if i in ("easter", "may4") else 2600)   # mid-animation (these two last about 3 s)
+            assert has_intro(p), "no startup animation"
+            if extra:
+                assert p.evaluate(f"document.getElementById('holPic').classList.contains('{extra}')"), f"#holPic missing {extra}"
+            c.shot(p, f"intro-{i}-mid")
+            p.wait_for_timeout(7000)
+            assert not has_intro(p), "animation still running after 9.5 s"
+            if extra:
+                assert not p.evaluate(f"document.getElementById('holPic').classList.contains('{extra}')"), f"{extra} left on"
+            no_errors(p)
+        t.__name__ = f"intro_{i}"
+        return t
+    case(_make6())
+
+
+@case
+def flag_has_stripes_and_stars(c):
+    p = c.page(date="2026-07-04")
+    p.wait_for_timeout(7000)
+    n = p.evaluate("[document.querySelectorAll('#holPic svg .stripe').length, document.querySelectorAll('#holPic svg .star').length]")
+    assert n == [13, 50], f"stripes/stars {n}"
+    c.shot(p, "flag-rest")
     no_errors(p)
 
 
