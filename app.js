@@ -295,30 +295,29 @@ async function warnOutlines(map) {
   $("warnKey").innerHTML = Object.entries(seen).map(([ev, c]) => `<span style="color:${c}">&#9632;</span> ${ev}`).join(" &nbsp; ");
 }
 
-// TV only: the radar box cycles local radar, Great Lakes radar, then satellite clouds, 20 seconds each.
-// Satellite is GOES-East from the same source as the radar: visible light by day, infrared (cloud-top heat) at night.
+// TV only: the radar box cycles local radar, Great Lakes radar, then (in daylight only) satellite clouds, 20 seconds each.
+// Satellite is GOES-East visible imagery from the same source as the radar. At night the satellite view is skipped.
 function rotateRadar(map) {
-  const views = [["Radar, local", 8], ["Radar, Great Lakes", 6], ["Satellite clouds", 6, true]];
   let v = 0, sat = null;
+  const mins = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+  const daylight = () => {   // visible imagery goes dark near sunrise and sunset, so allow an hour of margin
+    const s = window.SUNTIMES, now = new Date().toLocaleString("sv-SE", {timeZone: TZ}).slice(11, 16);
+    return !!s && mins(now) > mins(s[0]) + 60 && mins(now) < mins(s[1]) - 60;
+  };
   setInterval(() => {
+    const views = [["Radar, local", 8], ["Radar, Great Lakes", 6]].concat(daylight() ? [["Satellite clouds", 6, true]] : []);
     v = (v + 1) % views.length;
     const [title, zoom, isSat] = views[v];
     map.setView([LAT, LON], zoom, {animate: false});
     if (sat) { map.removeLayer(sat); sat = null; }
+    $("radarTitle").textContent = title;
     if (isSat) {
       clearInterval(timer); timer = null;
       frames.forEach(f => f.layer.setOpacity(0));
-      const s = window.SUNTIMES, now = new Date().toLocaleString("sv-SE", {timeZone: TZ}).slice(11, 16);
-      const mins = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
-      const day = s && mins(now) > mins(s[0]) + 60 && mins(now) < mins(s[1]) - 60;   // visible imagery goes dark near sunrise and sunset
-      sat = L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch${day ? "02" : "13"}/{z}/{x}/{y}.png?t=${Date.now()}`,
+      sat = L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch02/{z}/{x}/{y}.png?t=${Date.now()}`,
         {opacity: 0.75, attribution: "IEM GOES"}).addTo(map);
-      $("radarTitle").textContent = title + (day ? " (visible)" : " (infrared)");
       $("radarTime").textContent = "Latest";
-    } else {
-      $("radarTitle").textContent = title;
-      if (!timer) play();
-    }
+    } else if (!timer) play();
   }, 20000);
 }
 
