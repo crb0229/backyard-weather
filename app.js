@@ -333,6 +333,7 @@ function sky(code) {
 const charts = [];
 function showTenDay(m) {
   const d = m.daily;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;   // charts use the page's font, not the library's default
   $("tenday").innerHTML = d.time.map((t, i) => {
     const [ic, word] = sky(d.weather_code[i]);
     const dt = new Date(t + "T12:00"), name = dt.toLocaleDateString("en-US", {weekday: "short"}) + "<br>" + (dt.getMonth() + 1) + "/" + dt.getDate();
