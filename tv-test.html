@@ -104,6 +104,7 @@ body.alerting .panel{border:2px solid var(--warn)}
 #radar .leaflet-control-attribution{font-size:.7rem}   /* dark, not grey, while map pieces load */
 header button{font:500 .85rem var(--body);background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 10px;margin-left:.6vw}
 header button:focus-visible{outline:2px solid var(--accent)}
+#themeBtn:focus,#themeBtn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}   /* TEST: TV remotes may not trigger :focus-visible */
 /* ---------- TEST changes (tv-test.html only) ---------- */
 #testTag{font:700 .9rem var(--display);color:#000;background:var(--warn);border-radius:4px;padding:1px 8px;margin-left:.8vw;vertical-align:.35em}
 #summary{font:600 1.7rem/1.2 var(--display);color:var(--fg)}
@@ -136,7 +137,7 @@ body.stale #nowTemp{color:var(--muted);opacity:.6}
 window.HOURS = 9; window.RADAR_ROTATE = true;</script>
 </head>
 <body>
-<header><span><h1 style="display:inline">Local Weather</h1><span id="testTag">TEST</span> <button id="placeBtn" type="button"></button><span id="holPic"></span><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
+<header><span><h1 style="display:inline">Local Weather</h1><span id="testTag">TEST</span> <button id="placeBtn" type="button"></button><button id="themeBtn" type="button" hidden>Theme: On</button><span id="holPic"></span><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
 <div id="summary"></div>
 <div id="alerts"></div>
 

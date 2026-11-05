@@ -51,12 +51,14 @@
   const dayKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const isNight = d => d.getHours() >= 23 || d.getHours() < 6;
 
-  // Storage that never throws: private windows and locked-down browsers can refuse it, and the theme then simply stays on
+  // Storage that never throws: private windows and locked-down browsers can refuse it. Anything it refuses is kept
+  // in memory instead, so the on/off button still holds until the page closes.
   function safeStore(s) {
+    const mem = {};
     return {
-      get(k) { try { return s ? s.getItem(k) : null; } catch (e) { return null; } },
-      set(k, v) { try { if (s) s.setItem(k, v); } catch (e) {} },
-      del(k) { try { if (s) s.removeItem(k); } catch (e) {} }};
+      get(k) { if (k in mem) return mem[k]; try { return s ? s.getItem(k) : null; } catch (e) { return null; } },
+      set(k, v) { try { if (!s) throw 0; s.setItem(k, v); delete mem[k]; } catch (e) { mem[k] = String(v); } },
+      del(k) { delete mem[k]; try { if (s) s.removeItem(k); } catch (e) {} }};
   }
   const OFF = "wx:themeOff", PLAYED = "wx:introPlayed";
   const offTag = (t, d) => `${t.id}-${d.getFullYear()}`;
@@ -77,13 +79,18 @@
 
   // Show a holiday: soft colors for the whole screen, its font and picture beside the title, or just the greeting.
   // on = false keeps the greeting and drops everything else. Runs every minute, so it only redraws when something changed.
-  let shown = null;
+  let shown = null, cur = null;
   function apply(theme, on, d) {
+    cur = {theme, d};
     const greeting = theme ? theme.greeting(d) : "", full = !!(theme && theme.main && on);
     const state = `${theme ? theme.id : ""}|${full}|${greeting}`;
     if (state === shown) return;
     shown = state;
     const rootEl = document.documentElement, el = document.getElementById("holiday"), pic = document.getElementById("holPic");
+    const btn = document.getElementById("themeBtn");
+    btn.hidden = !(theme && theme.main);   // greeting-only holidays have nothing to switch off
+    btn.textContent = full ? "Theme: On" : "Theme: Off";
+    btn.onclick = toggle;
     rootEl.className = rootEl.className.replace(/\bhol-\S+/g, "").trim();
     const p = full ? theme.palette : null;
     [["--bg", "bg"], ["--panel", "panel"], ["--line", "line"], ["--hol-title", "title"]].forEach(([v, k]) => p ? rootEl.style.setProperty(v, p[k]) : rootEl.style.removeProperty(v));
@@ -113,8 +120,18 @@
     }
   }
 
-  const H = {THEMES, holidayFor, dayKey, isNight, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply};
+  // The remote's OK button on "Theme: On/Off". Off lasts for this holiday; switching back on replays the startup animation.
+  function toggle() {
+    if (!cur || !cur.theme) return;
+    const {theme, d} = cur, nowOn = isOff(H.store, theme, d);
+    setOff(H.store, theme, d, !nowOn);
+    apply(theme, nowOn, d);
+    if (nowOn) H.onThemeOn(theme);
+  }
+
+  const H = {THEMES, holidayFor, dayKey, isNight, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply, toggle,
+    onThemeOn() {}};   // filled in by the startup animation code
   if (typeof window !== "undefined") H.store = safeStore((() => { try { return window.localStorage; } catch (e) { return null; } })());
   if (typeof module !== "undefined" && module.exports) module.exports = H;
-  root.HOLIDAY = Object.assign(root.HOLIDAY || {}, H);
+  root.HOLIDAY = H;   // one shared object, so hooks set later (onThemeOn) are the ones the button calls
 })(typeof window !== "undefined" ? window : globalThis);

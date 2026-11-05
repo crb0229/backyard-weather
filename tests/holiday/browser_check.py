@@ -134,6 +134,57 @@ def missing_picture_hidden(c):
     no_errors(p)
 
 
+# ---------- Task 4: theme on/off button ----------
+
+def focus_theme_btn(p):
+    for _ in range(12):
+        if p.evaluate("document.activeElement && document.activeElement.id") == "themeBtn":
+            return
+        p.keyboard.press("Tab")
+    raise AssertionError("could not reach #themeBtn with Tab")
+
+
+@case
+def toggle_off_and_on(c):
+    p = c.page(date="2026-10-31")
+    assert p.is_visible("#themeBtn") and p.text_content("#themeBtn").strip() == "Theme: On", "button missing or wrong text"
+    focus_theme_btn(p)
+    p.keyboard.press("Enter")
+    p.wait_for_timeout(300)
+    assert var(p, "--bg") == default_bg(p), var(p, "--bg")
+    assert p.evaluate("document.getElementById('holPic').children.length === 0"), "picture still shown"
+    assert p.text_content("#holiday").strip() == "Happy Halloween", "greeting must stay"
+    assert p.text_content("#themeBtn").strip() == "Theme: Off"
+    p.reload()
+    p.wait_for_timeout(2500)
+    assert p.text_content("#themeBtn").strip() == "Theme: Off", "Off not remembered"
+    assert var(p, "--bg") == default_bg(p)
+    focus_theme_btn(p)
+    p.keyboard.press("Enter")
+    p.wait_for_timeout(300)
+    assert var(p, "--bg") == "#1d1418", "theme did not come back"
+    assert p.text_content("#themeBtn").strip() == "Theme: On"
+    no_errors(p)
+
+
+@case
+def toggle_hidden_without_main_theme(c):
+    for date in ("2026-02-14", "2026-08-12"):
+        p = c.page(date=date)
+        assert not p.is_visible("#themeBtn"), f"button visible on {date}"
+        no_errors(p)
+
+
+@case
+def toggle_works_when_storage_blocked(c):
+    p = c.page(date="2026-10-31", init="Storage.prototype.setItem = function(){ throw new Error('blocked') }; Storage.prototype.getItem = function(){ throw new Error('blocked') };")
+    assert var(p, "--bg") == "#1d1418"
+    p.click("#themeBtn")
+    p.wait_for_timeout(300)
+    assert var(p, "--bg") == default_bg(p), "toggle did nothing with storage blocked"
+    no_errors(p)
+
+
 def main():
     out, flt = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else "")
     os.makedirs(out, exist_ok=True)
