@@ -107,6 +107,7 @@ header button:focus-visible{outline:2px solid var(--accent)}
 table{font-size:1.25rem}
 .kv{font-size:1.25rem}
 #moonCredit,#issNote{display:none}
+.slide{background:var(--panel)}   /* while a slide fades it is blended on its own, so the moon and ISS photos need the panel color behind them or their black sky shows as a square */
 .alert{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-left:1.2vw solid var(--bad)}
 .alert p{display:block;margin:.3vh 0 0;font:500 1.05rem var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
 body.stale #nowTemp{color:var(--muted);opacity:.6}
