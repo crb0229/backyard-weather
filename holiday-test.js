@@ -73,7 +73,48 @@
   }
   const markPlayed = (store, t, now) => store.set(PLAYED, `${t.id}-${dayKey(now)}`);
 
-  const H = {THEMES, holidayFor, dayKey, isNight, safeStore, isOff, setOff, shouldPlayIntro, markPlayed};
+  // ---------- On the page ----------
+
+  // Show a holiday: soft colors for the whole screen, its font and picture beside the title, or just the greeting.
+  // on = false keeps the greeting and drops everything else. Runs every minute, so it only redraws when something changed.
+  let shown = null;
+  function apply(theme, on, d) {
+    const greeting = theme ? theme.greeting(d) : "", full = !!(theme && theme.main && on);
+    const state = `${theme ? theme.id : ""}|${full}|${greeting}`;
+    if (state === shown) return;
+    shown = state;
+    const rootEl = document.documentElement, el = document.getElementById("holiday"), pic = document.getElementById("holPic");
+    rootEl.className = rootEl.className.replace(/\bhol-\S+/g, "").trim();
+    const p = full ? theme.palette : null;
+    [["--bg", "bg"], ["--panel", "panel"], ["--line", "line"], ["--hol-title", "title"]].forEach(([v, k]) => p ? rootEl.style.setProperty(v, p[k]) : rootEl.style.removeProperty(v));
+    let link = document.getElementById("holFont");
+    if (full) {
+      rootEl.classList.add("hol-on", "hol-" + theme.id);
+      if (!link) { link = document.createElement("link"); link.id = "holFont"; link.rel = "stylesheet"; document.head.appendChild(link); }
+      link.href = `https://fonts.googleapis.com/css2?family=${theme.font.css}&display=swap`;
+    } else if (link) link.remove();
+    el.textContent = greeting;
+    el.style.color = full ? "" : (theme && theme.color) || "";
+    el.style.fontFamily = full ? `"${theme.font.family}", var(--display)` : "";
+    pic.innerHTML = "";
+    if (!full) return;
+    if (theme.picture.img) {
+      const img = new Image();
+      img.alt = "";
+      img.onerror = () => img.remove();   // a missing picture leaves just the greeting, never a broken-image box
+      img.src = theme.picture.img;
+      pic.appendChild(img);
+    } else {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 100 100");
+      pic.appendChild(svg);
+      if (theme.picture.draw === "flag") root.ART.drawFlag(svg, 0.55, 0);
+      else root.ART.drawDeathStar(svg, 1, true, "hdr");
+    }
+  }
+
+  const H = {THEMES, holidayFor, dayKey, isNight, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply};
+  if (typeof window !== "undefined") H.store = safeStore((() => { try { return window.localStorage; } catch (e) { return null; } })());
   if (typeof module !== "undefined" && module.exports) module.exports = H;
   root.HOLIDAY = Object.assign(root.HOLIDAY || {}, H);
 })(typeof window !== "undefined" ? window : globalThis);
