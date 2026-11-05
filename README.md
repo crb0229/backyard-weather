@@ -1,36 +1,74 @@
-# Caledonia Backyard Weather
+# Local Weather TV
 
-Phone dashboard for station KMICALED82: station readings, NWS forecast and alerts, radar loop, and a forecast adjusted to how the models actually miss at this yard.
+A full-screen weather dashboard built for a smart TV, showing conditions at the backyard Ambient Weather station (KMICALED82 near Caledonia, MI), live radar, a rotating set of detail panels, and a station-tuned forecast.
 
-## How it runs (no home hardware)
+Live TV page: https://crb0229.github.io/backyard-weather/tv.html  
+Android TV app (APK): https://crb0229.github.io/backyard-weather/tv.apk
 
-- GitHub Pages hosts the page for free.
-- GitHub Actions (free for public repos) runs `wx.py` on a schedule:
-  - every 15 minutes: latest station reading
-  - daily, early morning: adds yesterday's station data and yesterday's 24-hour-ahead model forecast, saves the NWS forecast for tomorrow, rebuilds the correction and scorecard
-- The page itself pulls NWS, Open-Meteo, and radar live from your phone.
-- Ambient keys live only in GitHub Secrets. They never appear in the page or the data files.
+## What you see on the TV
 
-## One-time setup (about 15 minutes)
+- **Always on the left:** local radar loop (KGRR area).
+- **Always on the right top:** current station temperature (large) plus key readings (humidity, wind, pressure, rain, etc.). Stale readings are flagged.
+- **Rotating detail panel** (10-day outlook stays up longest):
+  - 10-day temperature, sky, precipitation, and wind charts
+  - Next 9 hours + evening sky conditions
+  - Sun & moon (with phase graphic)
+  - Space Station passes visible from home
+  - Wind outlook
+- Holiday greetings and light animations (snow, fireworks, etc.) on the appropriate dates.
+- OLED burn-in protection (tiny screen nudge) and late-night dimming.
+- Alerts, freeze/frost flags, rain/storm callouts, and a clock in Michigan time.
 
-1. Create a GitHub account if you don't have one. New repository, name it `backyard-weather`, set to Public, check "Add a README".
-2. Upload these files: `index.html`, `wx.py`, `README.md`, and the folder `.github/workflows/weather.yml`.
-   (On the repo page: Add file > Upload files. For the workflow, use Add file > Create new file, type `.github/workflows/weather.yml` as the name, paste the contents.)
-3. Settings > Secrets and variables > Actions > New repository secret. Add two:
-   - `AMBIENT_API_KEY`
-   - `AMBIENT_APP_KEY`
-   Both come from ambientweather.net > Account > API Keys. The Application Key is a separate key you create on that same page.
-4. Settings > Pages > Source: Deploy from a branch, branch `main`, folder `/ (root)`. Save.
-5. Actions tab > "weather data" > Run workflow > job `backfill` > Run. This pulls the station history and past model forecasts. Expect 5 to 20 minutes.
-6. Open `https://<your-username>.github.io/backyard-weather/` on your phone and add it to the home screen.
+Everything is sized for a 16:9 TV with no scrolling. The page reloads periodically so data stays fresh.
 
-## What to expect
+## Android TV app
 
-- Station readings lag 15 to 30 minutes. GitHub runs scheduled jobs late at busy times. The "Live station dashboard" link at the bottom goes to Ambient for the real-time view.
-- The correction needs 30 days of overlapping station and model history before it switches on, and only stays on for a variable if it beats the raw model on held-out recent days.
-- The NWS comparison starts empty. There is no free archive of past NWS point forecasts, so the daily job saves its own copy from day one. After 14 days the scorecard shows how NWS does against the corrected forecast.
-- Rain and snow amounts are not corrected.
+The `android/` folder is a minimal Android TV app (leanback launcher) that opens `tv.html` full-screen in a WebView, keeps the screen on, and stays within the site. Page updates appear without reinstalling the app.
 
-## If something breaks
+GitHub Actions (`.github/workflows/tv-app.yml`) builds a signed release APK whenever the Android sources change and commits it as `tv.apk` at the root of the repo. Download it from the link above and sideload onto your Android TV / Fire TV / etc.
 
-Actions tab shows each run as green or red. Click a red one and copy the last 20 lines of the log into the Claude project chat.
+Signing keys live only in GitHub Secrets (`TV_KEYSTORE_B64` and `TV_KEYSTORE_PASS`).
+
+## Phone version
+
+`index.html` is still available as a scrolling, phone-friendly dashboard with the same data and charts (plus a scorecard for the station correction). Open https://crb0229.github.io/backyard-weather/ and optionally add it to your home screen.
+
+## How the data works (no home hardware)
+
+GitHub Pages hosts the pages. GitHub Actions runs `wx.py` on a schedule (`.github/workflows/weather.yml`):
+
+- Every ~15 minutes: latest Ambient station reading → `data/latest.json`
+- Daily (early morning Michigan time, or whenever the first run after 4 AM arrives): appends recent station history, logs the NWS forecast, pulls past model runs, and rebuilds the station-specific correction + scorecard (`data/correction.json`)
+
+The pages themselves fetch live NWS forecasts/alerts, Open-Meteo model data, and radar tiles. Ambient API keys live only in GitHub Secrets (`AMBIENT_API_KEY` and `AMBIENT_APP_KEY`) and never appear in the committed data or HTML.
+
+The correction (temperature, dew point, wind) only turns on after enough overlapping history and only if it actually reduces error on held-out recent days. Overnight lows are protected so the correction never makes them worse. Rain/snow amounts are not adjusted.
+
+## One-time setup (if you want to run your own copy)
+
+1. Fork or copy the repo (keep it public so Actions minutes are free).
+2. Add repository secrets:
+   - `AMBIENT_API_KEY` and `AMBIENT_APP_KEY` (from ambientweather.net → Account → API Keys)
+   - For the TV APK: `TV_KEYSTORE_B64` (base64 of your keystore) and `TV_KEYSTORE_PASS`
+3. Enable GitHub Pages (Settings → Pages → Deploy from branch `main` / root).
+4. Run the “weather data” workflow once with job `backfill` to populate history (can take a while).
+5. Open the TV page or install the APK.
+
+## Files
+
+- `tv.html` — full-screen TV dashboard
+- `index.html` — phone/scrolling dashboard
+- `app.js` — shared logic (radar, charts, corrections, ISS, etc.)
+- `wx.py` — data collector and correction builder
+- `data/` — station readings, model history, correction tables (updated by Actions)
+- `android/` — Android TV wrapper app
+- `.github/workflows/` — weather data refresh + TV APK build
+
+## Limits
+
+- Station readings lag by the Actions schedule (typically 15–30 minutes). Use the Ambient dashboard link for true real-time.
+- Forecast corrections need weeks of history before they activate.
+- ISS pass predictions and holiday effects are approximate and client-side.
+- Radar and external tiles require an internet connection.
+
+If a workflow fails, check the Actions tab and the last lines of the log.
