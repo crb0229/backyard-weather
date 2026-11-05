@@ -88,6 +88,7 @@ body.alerting .panel{border:2px solid var(--warn)}
 .iss td{text-align:left;padding:.8vh .6vw}
 .iss .when{font-family:var(--num);white-space:nowrap}
 #placeBtn{font-size:1.15rem;vertical-align:.25em}
+#radar.leaflet-container{background:var(--bg)}   /* dark, not grey, while map pieces load */
 header button{font:500 .85rem var(--body);background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 10px;margin-left:.6vw}
 header button:focus-visible{outline:2px solid var(--accent)}
 </style>
@@ -130,7 +131,7 @@ header button:focus-visible{outline:2px solid var(--accent)}
       <div class="slide">
         <div class="slidehead"><h2>Sky and rain, 10 days</h2><span class="dots"></span></div>
         <div class="chart"><canvas id="cSky"></canvas></div>
-        <div class="chart" style="flex:.6"><canvas id="cPrecip"></canvas></div>
+        <div class="chart" style="flex:.85"><canvas id="cPrecip"></canvas></div>
       </div>
       <div class="slide">
         <div class="slidehead"><h2>Sun and moon today</h2><span class="dots"></span></div>

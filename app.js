@@ -349,17 +349,39 @@ function showTenDay(m) {
     {label: STATION ? "Dew point (station)" : "Dew point", data: dew, borderColor: c("--yard")},
     {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [4, 4], borderWidth: 1}]);
 
-  mk("cSky", base({min: 0, max: 100}, {p: {position: "right", grid: {display: false}, ticks: {color: c("--muted"), font: {size: TVF}, callback: v => v.toFixed(2)}}}), [
-    {label: "Rain chance %", data: h.precipitation_probability, borderColor: c("--accent"), backgroundColor: c("--accent-fill"), fill: true},
-    {label: "Cloud cover %", data: h.cloud_cover, borderColor: c("--cloud"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 1},
-    {label: "Humidity %", data: h.relative_humidity_2m, borderColor: c("--humid")},
-    {label: "Pressure in", data: h.pressure_msl.map(p => p * 0.02953), borderColor: c("--fg"), yAxisID: "p"}]);
+  if (window.CHART_FONT) {
+    // TV: two simple charts that read from across the room
+    mk("cSky", base({min: 0, max: 100, ticks: {color: c("--muted"), font: {size: TVF}, stepSize: 50, callback: v => v + "%"}}), [
+      {label: "Chance of rain", data: h.precipitation_probability, borderColor: c("--accent"), backgroundColor: c("--accent-fill"), fill: true, borderWidth: 3, order: 1},
+      {label: "Cloud cover", data: h.cloud_cover, borderColor: c("--cloud-fill"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 0, order: 2}]);
+    // Rain and snow per day as labeled bars
+    const labels = d.time.map(t => new Date(t + "T12:00").toLocaleDateString("en-US", {weekday: "short"}));
+    const amounts = {id: "amounts", afterDatasetsDraw(ch) {
+      const g = ch.ctx; g.save(); g.fillStyle = c("--fg"); g.font = `600 ${TVF}px ${getComputedStyle(document.body).fontFamily}`; g.textAlign = "center";
+      ch.data.datasets.forEach((ds, k) => ch.getDatasetMeta(k).data.forEach((bar, i) => {
+        const v = ds.data[i]; if (v >= (k ? 0.1 : 0.01)) g.fillText(k ? v.toFixed(1) + '" snow' : v.toFixed(2) + '"', bar.x, bar.y - 6);
+      }));
+      g.restore(); }};
+    charts.push(new Chart($("cPrecip"), {type: "bar", plugins: [amounts],
+      data: {labels, datasets: [{label: "Rain (inches)", data: d.precipitation_sum, backgroundColor: c("--accent"), barPercentage: .7, categoryPercentage: .9}]
+        .concat(d.snowfall_sum.some(v => v >= 0.1) ? [{label: "Snow (inches)", data: d.snowfall_sum, backgroundColor: c("--cold"), barPercentage: .7, categoryPercentage: .9}] : [])},   // snow bars only when snow is forecast
+      options: {maintainAspectRatio: false, animation: false, layout: {padding: {top: TVF + 8}},
+        plugins: {legend: {labels: {color: c("--muted"), boxWidth: 12, boxHeight: 8, font: {size: TVF + 1}}}, tooltip: {enabled: false}},
+        scales: {x: {grid: {display: false}, ticks: {color: c("--muted"), font: {size: TVF}}},
+          y: {min: 0, suggestedMax: 0.25, grid: {color: c("--line")}, ticks: {color: c("--muted"), font: {size: TVF}, maxTicksLimit: 3, callback: v => v.toFixed(2)}}}}}));
+  } else {
+    mk("cSky", base({min: 0, max: 100}, {p: {position: "right", grid: {display: false}, ticks: {color: c("--muted"), font: {size: TVF}, callback: v => v.toFixed(2)}}}), [
+      {label: "Rain chance %", data: h.precipitation_probability, borderColor: c("--accent"), backgroundColor: c("--accent-fill"), fill: true},
+      {label: "Cloud cover %", data: h.cloud_cover, borderColor: c("--cloud"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 1},
+      {label: "Humidity %", data: h.relative_humidity_2m, borderColor: c("--humid")},
+      {label: "Pressure in", data: h.pressure_msl.map(p => p * 0.02953), borderColor: c("--fg"), yAxisID: "p"}]);
 
-  let run = 0;
-  mk("cPrecip", base({min: 0, suggestedMax: 0.1, ticks: {color: c("--muted"), font: {size: TVF}, callback: v => v.toFixed(2)}}), [
-    {label: "Hourly rain in", type: "bar", data: h.precipitation, backgroundColor: c("--accent")},
-    {label: "Snowfall in", type: "bar", data: h.snowfall, backgroundColor: c("--cold")},
-    {label: "Running total in", data: h.precipitation.map(p => run += p || 0), borderColor: c("--fg"), borderWidth: 1}]);
+    let run = 0;
+    mk("cPrecip", base({min: 0, suggestedMax: 0.1, ticks: {color: c("--muted"), font: {size: TVF}, callback: v => v.toFixed(2)}}), [
+      {label: "Hourly rain in", type: "bar", data: h.precipitation, backgroundColor: c("--accent")},
+      {label: "Snowfall in", type: "bar", data: h.snowfall, backgroundColor: c("--cold")},
+      {label: "Running total in", data: h.precipitation.map(p => run += p || 0), borderColor: c("--fg"), borderWidth: 1}]);
+  }
 
   mk("cWind", base({min: 0}), [
     {label: "Wind mph (open field)", data: h.wind_speed_10m, borderColor: c("--accent"),
@@ -369,10 +391,10 @@ function showTenDay(m) {
     [{label: "Station wind", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderDash: [3, 3]}] : []));
 }
 
-let frames = [], fi = 0, timer = null;
+let frames = [], fi = 0, timer = null, BASE = null;
 function radar() {
   const map = MAP = L.map("radar", {zoomControl: false, attributionControl: true}).setView([LAT, LON], 8);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution: "© OpenStreetMap contributors", maxZoom: 12, className: "basemap"}).addTo(map);
+  BASE = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution: "© OpenStreetMap contributors", maxZoom: 12, className: "basemap"}).addTo(map);
   L.circleMarker([LAT, LON], {radius: 5, color: "#0b7a5a", fillOpacity: 1}).addTo(map);
   const offs = ["m55m", "m50m", "m45m", "m40m", "m35m", "m30m", "m25m", "m20m", "m15m", "m10m", "m05m", ""];
   frames = offs.map((o, i) => ({mins: 55 - i * 5, layer: L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913${o ? "-" + o : ""}/{z}/{x}/{y}.png`, {opacity: 0, attribution: "IEM NEXRAD"}).addTo(map)}));
@@ -430,11 +452,11 @@ function rotateRadar(map) {
         frames.forEach(f => f.layer.setOpacity(0));
         sat = L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch02/{z}/{x}/{y}.png?t=${Date.now()}`,
           {opacity: 0.75, attribution: "IEM GOES"});
-        ready = loaded(sat);
+        ready = Promise.all([loaded(sat), loaded(BASE)]);
         sat.addTo(map);
         $("radarTime").textContent = "Latest";
       } else {
-        ready = loaded(frames[frames.length - 1].layer);
+        ready = Promise.all([loaded(frames[frames.length - 1].layer), loaded(BASE)]);   // map background too, so no grey flash
         if (!timer) play();
       }
       map.setView([LAT, LON], zoom, {animate: false});
