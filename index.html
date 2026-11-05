@@ -96,7 +96,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
   <section class="two">
     <div class="panel">
       <h2>Tonight's low</h2>
-      <div class="kv"><span>Official</span><b id="lowNws">--</b><span class="yard">My yard</span><b class="yard" id="lowYard">--</b></div>
+      <div class="kv"><span>NWS</span><b id="lowNws">--</b><span class="yard">Station</span><b class="yard" id="lowYard">--</b></div>
       <p id="frostFlag"></p>
     </div>
     <div class="panel">
@@ -107,9 +107,9 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
   </section>
 
   <section class="panel">
-    <h2>Next 24 hours at my yard</h2>
+    <h2>Next 24 hours at the station</h2>
     <div class="scroll"><table id="hourly"></table></div>
-    <p class="small">Model forecast adjusted to how it has missed at this station, where that helps. Rain chance is the official NWS figure; rain amounts are not adjusted.</p>
+    <p class="small">Model forecast adjusted to how it has missed at this station, where that helps. Rain chance is the NWS figure; rain amounts are not adjusted.</p>
   </section>
 
   <section class="panel">
@@ -119,7 +119,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
     <div class="chart" style="height:190px"><canvas id="cSky"></canvas></div>
     <div class="chart" style="height:130px"><canvas id="cPrecip"></canvas></div>
     <div class="chart" style="height:160px"><canvas id="cWind"></canvas></div>
-    <p class="small">Model forecast (Open-Meteo best match). Shaded bands are night; the white line is now; the dashed line is 32°F. Dew point and "my anemometer" wind are adjusted to this station; temperature is not, because adjusting it didn't help. Tap a chart to read values.</p>
+    <p class="small">Model forecast (Open-Meteo best match). Shaded bands are night; the white line is now; the dashed line is 32°F. Dew point and "station wind" are adjusted to this station; temperature is not, because adjusting it didn't help. Tap a chart to read values.</p>
   </section>
 
   <section class="panel">
@@ -128,12 +128,12 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
   </section>
 
   <section class="panel">
-    <h2>7-day official forecast</h2>
+    <h2>7-day NWS forecast</h2>
     <div class="days" id="days"></div>
   </section>
 
   <section class="panel">
-    <h2>Is the yard correction earning its keep?</h2>
+    <h2>Is the station correction earning its keep?</h2>
     <div class="scroll"><table class="score" id="score"></table></div>
     <p class="small" id="scoreNote"></p>
   </section>

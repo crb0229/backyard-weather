@@ -105,7 +105,7 @@ function showHourly(nws, m) {
     row("", c => clock(c.t).replace(":00", "")) +
     row("Temp", c => { const y = yard("temp", c.t, h.temperature_2m[c.i]); return y == null ? "--" : Math.round(y) + "°"; }, "yard") +
     row("Dew pt", c => { const y = yard("dew", c.t, h.dew_point_2m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
-    row("Wind (my gauge)", c => { const y = yard("wind", c.t, h.wind_speed_10m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
+    row("Wind (station)", c => { const y = yard("wind", c.t, h.wind_speed_10m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
     row("Gusts (model)", c => Math.round(h.wind_gusts_10m[c.i])) +
     row("Cloud cover", c => h.cloud_cover[c.i] + "%") +
     row("Rain chance (NWS)", c => (c.n ? nz(c.n.probabilityOfPrecipitation.value, 0) : h.precipitation_probability[c.i]) + "%");
@@ -133,7 +133,7 @@ function showSnow(g, m) {
   $("iceAmt").textContent = ic < 0.01 ? "none" : ic.toFixed(2) + '"';
   if (m) { const h = m.hourly, i0 = h.time.findIndex(t => localMs(t) >= Date.now());
     const j = h.time.slice(i0, i0 + 48).findIndex((t, k) => h.snowfall[i0 + k] > 0);
-    $("snowWhen").textContent = j >= 0 ? `Model shows snow starting ${dayClock(h.time[i0 + j])}. Amounts are official NWS, not adjusted.` : "Amounts are official NWS, not adjusted."; }
+    $("snowWhen").textContent = j >= 0 ? `Model shows snow starting ${dayClock(h.time[i0 + j])}. Amounts are from the NWS, not adjusted.` : "Amounts are from the NWS, not adjusted."; }
 }
 
 function showEvenings(m) {
@@ -237,7 +237,7 @@ function showTenDay(m) {
   mk("cTemp", base({}), [
     {label: "Temperature °F", data: h.temperature_2m, borderColor: c("--bad")},
     {label: "Feels like", data: h.apparent_temperature, borderColor: c("--feels")},
-    {label: "Dew point (yard)", data: dew, borderColor: c("--yard")},
+    {label: "Dew point (station)", data: dew, borderColor: c("--yard")},
     {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [4, 4], borderWidth: 1}]);
 
   mk("cSky", base({min: 0, max: 100}, {p: {position: "right", grid: {display: false}, ticks: {color: c("--muted"), font: {size: TVF}, callback: v => v.toFixed(2)}}}), [
@@ -257,7 +257,7 @@ function showTenDay(m) {
       pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 3, pointBackgroundColor: c("--accent"),
       pointRotation: x => (h.wind_direction_10m[x.dataIndex] + 180) % 360},
     {label: "Gusts", data: h.wind_gusts_10m, borderColor: c("--warn"), borderWidth: 1},
-    {label: "My anemometer", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderDash: [3, 3]}]);
+    {label: "Station wind", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderDash: [3, 3]}]);
 }
 
 let frames = [], fi = 0, timer = null;
