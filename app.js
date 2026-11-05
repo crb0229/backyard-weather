@@ -275,6 +275,25 @@ function showSunMoon(m) {
   // Lit part: a half disc on the lit side plus an ellipse that either adds to it (gibbous) or cuts into it (crescent)
   const waxing = age < P / 2, rx = 40 * Math.abs(1 - 2 * lit), side = waxing ? 1 : 0;
   $("moonPic").innerHTML = `<circle cx="50" cy="50" r="40" fill="#2b3742"/><path fill="#e6ecf1" d="M50 10 A40 40 0 0 ${side} 50 90 A${rx} 40 0 0 ${lit > 0.5 ? side : 1 - side} 50 10Z"/>`;
+  moonPhoto();
+}
+
+// A real picture of tonight's Moon: NASA's Scientific Visualization Studio renders the Moon for every hour of the year,
+// with the true phase and tilt. The drawing above stays as the fallback if the picture can't load or the year isn't listed.
+// Each year is a new NASA set; add its folder here when NASA publishes it (usually in December).
+const MOON_SETS = {2026: "a005500/a005587"};
+function moonPhoto() {
+  const y = new Date().getUTCFullYear(), dir = MOON_SETS[y], pic = $("moonPic");
+  if (!dir || !pic.parentNode) return;
+  const n = Math.floor((Date.now() - Date.UTC(y, 0, 1)) / 3600000) + 1;
+  const im = new Image();
+  im.className = "moonPhoto"; im.alt = "";
+  im.onload = () => {
+    const old = pic.parentNode.querySelector(".moonPhoto"); if (old) old.remove();
+    pic.style.display = "none"; pic.after(im);
+    $("moonCredit").textContent = "Moon image: NASA Scientific Visualization Studio";
+  };
+  im.src = `https://svs.gsfc.nasa.gov/vis/a000000/${dir}/frames/730x730_1x1_30p/moon.${String(n).padStart(4, "0")}.jpg`;
 }
 
 function showDays(periods) {

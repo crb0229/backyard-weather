@@ -69,6 +69,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .sunmoon .kv b{white-space:nowrap}
 .sunmoon .small{font-size:1rem}
 .moon{display:flex;align-items:center;gap:1.5vw}
+.moon .moonPhoto{width:22vh;height:22vh;flex:none;mix-blend-mode:screen}   /* black sky in the photo blends into the panel */
 .moon svg{width:20vh;height:20vh;flex:none}
 .moon .callout{font-size:1.8rem}
 #moonNext{white-space:pre-line}
@@ -137,7 +138,7 @@ header button:focus-visible{outline:2px solid var(--accent)}
         <div class="slidehead"><h2>Sun and moon today</h2><span class="dots"></span></div>
         <div class="sunmoon">
           <div><h2>Sun</h2><div class="kv"><span>Sunrise</span><b id="sunRise">--</b><span>Sunset</span><b id="sunSet">--</b><span>Daylight</span><b id="dayLen">--</b></div><p class="small" id="dayChange"></p></div>
-          <div class="moon"><svg viewBox="0 0 100 100" id="moonPic"></svg><div><div class="callout" id="moonName">--</div><div class="num" id="moonLit"></div><p class="small" id="moonNext"></p></div></div>
+          <div class="moon"><svg viewBox="0 0 100 100" id="moonPic"></svg><div><div class="callout" id="moonName">--</div><div class="num" id="moonLit"></div><p class="small" id="moonNext"></p><p class="small" id="moonCredit" style="font-size:.7rem"></p></div></div>
         </div>
       </div>
       <div class="slide">
