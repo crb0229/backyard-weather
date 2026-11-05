@@ -185,6 +185,82 @@ def toggle_works_when_storage_blocked(c):
     no_errors(p)
 
 
+# ---------- Task 5: startup animation rules ----------
+
+def has_intro(p):
+    return p.evaluate("!!document.getElementById('holIntro')")
+
+
+@case
+def intro_preview_plays_and_ends(c):
+    p = c.page(date="2026-12-20")
+    assert has_intro(p), "no startup animation on preview"
+    c.shot(p, "intro-christmas-2s")
+    p.wait_for_timeout(7000)
+    assert not has_intro(p), "animation still on screen after 9.5 s"
+    assert p.evaluate("document.querySelectorAll('canvas#holIntro').length") == 0
+    no_errors(p)
+
+
+@case
+def intro_plays_on_daytime_open(c):
+    p = c.page(clock=dt.datetime(2026, 12, 20, 14, 0))
+    assert has_intro(p), "no animation when the app is opened in the daytime"
+    no_errors(p)
+
+
+@case
+def intro_skipped_on_night_open(c):
+    p = c.page(clock=dt.datetime(2026, 12, 20, 2, 0))
+    p.wait_for_timeout(500)
+    assert not has_intro(p), "animation played at night"
+    no_errors(p)
+
+
+@case
+def intro_once_on_holiday_morning_for_tv_left_running(c):
+    p = c.page(clock=dt.datetime(2026, 12, 1, 5, 59), session=True)   # page already running through the night
+    assert not has_intro(p), "animation during the night dim"
+    p.clock.run_for(60000)   # the next minute check lands just after 6:00 AM (a longer jump would also run the 8 s animation to its end)
+    p.wait_for_timeout(500)
+    assert has_intro(p), "no animation at the first daytime minute of the holiday"
+    no_errors(p)
+    p.clock.set_system_time(dt.datetime(2026, 12, 1, 6, 15))   # the 6:15 automatic reload: same tab, same session
+    p.reload()
+    p.wait_for_timeout(2500)
+    assert not has_intro(p), "animation replayed on the automatic reload"
+    no_errors(p)
+
+
+@case
+def intro_stops_when_theme_switched_off(c):
+    p = c.page(date="2026-12-20")
+    assert has_intro(p)
+    p.click("#themeBtn")
+    p.wait_for_timeout(200)
+    assert not has_intro(p), "animation kept running after Theme: Off"
+    p.click("#themeBtn")
+    p.wait_for_timeout(300)
+    assert has_intro(p), "switching the theme back on did not replay the animation"
+    no_errors(p)
+
+
+@case
+def intro_skipped_with_reduced_motion(c):
+    p = c.page(clock=dt.datetime(2026, 12, 20, 14, 0), reduced=True)
+    assert not has_intro(p), "animation played with reduced motion"
+    no_errors(p)
+
+
+@case
+def intro_newyear_preview(c):
+    p = c.page(date="2027-01-01")
+    assert has_intro(p)
+    p.wait_for_timeout(1500)
+    c.shot(p, "intro-newyear-4s")
+    no_errors(p)
+
+
 def main():
     out, flt = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else "")
     os.makedirs(out, exist_ok=True)

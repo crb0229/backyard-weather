@@ -127,11 +127,37 @@
     setOff(H.store, theme, d, !nowOn);
     apply(theme, nowOn, d);
     if (nowOn) H.onThemeOn(theme);
+    else root.ART.stopIntro();
   }
 
-  const H = {THEMES, holidayFor, dayKey, isNight, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply, toggle,
-    onThemeOn() {}};   // filled in by the startup animation code
-  if (typeof window !== "undefined") H.store = safeStore((() => { try { return window.localStorage; } catch (e) { return null; } })());
+  // Startup animation. "Fresh open" means this page load is not one of the automatic 15-minute reloads: the
+  // session flag survives a reload but not closing the app. The minute check calls this; it plays at most once per load.
+  let fresh = null, introDone = false;
+  const reducedMotion = () => !!(root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  function freshOpen() {
+    if (fresh === null) { fresh = !H.session.get("wx:session"); H.session.set("wx:session", "1"); }
+    return fresh;
+  }
+  function maybeIntro(theme, now, preview) {
+    const isFresh = freshOpen();
+    if (introDone || !shouldPlayIntro({theme, now, freshOpen: isFresh, preview: !!preview, reducedMotion: reducedMotion(), store: H.store})) return;
+    introDone = true;
+    markPlayed(H.store, theme, now);
+    root.ART.playIntro(theme);
+  }
+  // Switching the theme back on replays the animation, except at night or with reduced motion
+  function onThemeOn(theme) {
+    const now = cur && cur.d || new Date();   // the page's Michigan-time clock (a preview date counts as midday)
+    if (reducedMotion() || isNight(now)) return;
+    markPlayed(H.store, theme, now);
+    root.ART.playIntro(theme);
+  }
+
+  const H = {THEMES, holidayFor, dayKey, isNight, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply, toggle, maybeIntro, onThemeOn};
+  if (typeof window !== "undefined") {
+    H.store = safeStore((() => { try { return window.localStorage; } catch (e) { return null; } })());
+    H.session = safeStore((() => { try { return window.sessionStorage; } catch (e) { return null; } })());
+  }
   if (typeof module !== "undefined" && module.exports) module.exports = H;
   root.HOLIDAY = H;   // one shared object, so hooks set later (onThemeOn) are the ones the button calls
 })(typeof window !== "undefined" ? window : globalThis);
