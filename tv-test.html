@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Local Weather TV (test)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one 16:9 screen, no scrolling. Left: radar, always on. Right top: now, always on. Right bottom: detail that rotates. Sizes scale with screen height (vh). */
+:root{
+  --bg:#0f151b; --panel:#18212a; --fg:#e6ecf1; --muted:#93a1ae; --line:#2b3742;
+  --accent:#6fb0de; --yard:#4cc79c; --warn:#f0a24a; --bad:#ff7a70; --cold:#7ab8ff;
+  --feels:#c48ae0; --humid:#b5c247; --cloud:#8a96a2; --cloud-fill:rgba(160,172,184,.22); --accent-fill:rgba(111,176,222,.3); --night:rgba(0,0,0,.28);
+  --display:"Barlow Semi Condensed",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --num:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark; font-size:1.9vh;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--bg);color:var(--fg);font:1rem/1.35 var(--body);padding:1.6vh 1.6vw;display:flex;flex-direction:column;gap:1.4vh}
+header{display:flex;justify-content:space-between;align-items:baseline}
+h1{font:600 2rem var(--display);margin:0}
+h2{font:600 .9rem var(--display);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 .6vh}
+.small{font-size:.85rem;color:var(--muted)}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+.alert{background:var(--bad);color:#fff;border-radius:8px;padding:.8vh 1vw;font:700 1.3rem var(--display)}
+.alert p{display:none}
+.alert summary{list-style:none}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:1.05fr 1fr;gap:1.4vh 1.4vw}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.2vh 1.2vw;min-width:0;min-height:0}
+.left{display:flex;flex-direction:column;position:relative}
+#holidayFx{position:absolute;pointer-events:none;z-index:700}
+#radar{flex:1;border-radius:8px;overflow:hidden}
+.radarbar{display:flex;justify-content:space-between;margin-top:.6vh}
+.right{display:flex;flex-direction:column;gap:1.4vh;min-height:0}
+.top{display:grid;grid-template-columns:auto 1fr;gap:1vh 2vw;align-items:center}
+.big{font:600 5rem/1 var(--num)}
+#nowKv{grid-template-columns:repeat(4,auto);justify-content:start;column-gap:1.4vw}
+#nowAge{display:none;margin:.4vh 0 0}
+body.stale #nowAge{display:block;color:var(--warn)}   /* shown only when the reading is more than 30 minutes old */
+.tenday .num:first-of-type{font-size:0}   /* hides the "|" between high and low */
+.tenday .num:first-of-type span{display:block;font-size:.85rem}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3vh 1.2vw;font-size:1.05rem}
+.kv b{font-weight:500;font-family:var(--num)}
+.strip{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:1.4vw;border-top:1px solid var(--line);padding-top:1vh;grid-column:1/3}
+.callout{font:600 1.35rem/1.2 var(--display)}
+.yard{color:var(--yard);font-weight:600}
+.flag{display:inline-block;font:600 .9rem var(--display);letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid}
+.freeze{color:var(--cold);border-color:var(--cold)} .frost{color:var(--warn);border-color:var(--warn)} .ok{color:var(--muted);border-color:var(--line)}
+.rotor{flex:1;position:relative;min-height:0}
+.slide{position:absolute;inset:1.2vh 1.2vw;display:flex;flex-direction:column;gap:1vh;opacity:0;transition:opacity .8s}
+.slide.on{opacity:1}
+.slidehead{display:flex;justify-content:space-between;align-items:center}
+.dots span{display:inline-block;width:.8vh;height:.8vh;border-radius:50%;background:var(--line);margin-left:.5vh}
+.dots span.on{background:var(--accent)}
+.chart{position:relative;flex:1;min-height:0}
+table{border-collapse:collapse;font-size:1.05rem;width:100%}
+th,td{padding:.45vh .3vw;text-align:center;white-space:nowrap}
+th{font-weight:500;color:var(--muted);text-align:left}
+tr+tr td,tr+tr th{border-top:1px solid var(--line)}
+.tenday{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:.4vw;text-align:center;font-size:.85rem}
+.tenday div{border:1px solid var(--line);border-radius:6px;padding:.5vh 2px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tenday svg{width:3.4vh;height:3.4vh}
+.hi{color:var(--bad)} .lo{color:var(--cold)}
+.eve{display:flex;gap:.6vw}
+.eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:.85rem}
+.eve .c0{border-color:var(--yard)}
+#radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.75)}
+.sunmoon{flex:1;display:grid;grid-template-columns:auto 1fr;gap:3vw;align-items:center}
+.sunmoon .kv{grid-template-columns:auto auto;font-size:1.8rem;gap:1.2vh 1.5vw;justify-content:start}
+.sunmoon .kv b{white-space:nowrap}
+.sunmoon .small{font-size:.85rem}
+.moon{display:flex;align-items:center;gap:1.5vw}
+.moon .moonPhoto{width:22vh;height:22vh;flex:none;mix-blend-mode:screen}   /* black sky in the photo blends into the panel */
+.moon svg{width:20vh;height:20vh;flex:none}
+.moon .callout{font-size:1.8rem}
+#moonNext{white-space:pre-line}
+#moonLit{font-size:1.35rem}
+.clock{font:600 1.6rem var(--display)}
+.clock b{font:600 1.6rem var(--num);color:var(--accent);margin-left:.8vw}
+/* Themes: daylight (a lifted slate, not white), late-night dim, freezing and alert accents, holiday label */
+:root.day{--bg:#27323d;--panel:#323f4c;--fg:#eef2f5;--muted:#aebbc7;--line:#46545f;--accent:#7cc0ee;--yard:#5ad6a9;--warn:#f4ad5c;--bad:#ff8a80;--cold:#8cc4ff;--feels:#d09ae8;--humid:#c3d05a;--cloud:#9aa6b2;--cloud-fill:rgba(170,182,194,.22);--accent-fill:rgba(124,192,238,.3);--night:rgba(0,0,0,.2)}
+:root.day #radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.95)}
+body{transition:filter 2s}
+body.dim{filter:brightness(.35)}
+body.freezing #nowTemp{color:var(--cold)}
+body.alerting .panel{border:2px solid var(--warn)}
+#holiday{font:600 1.1rem var(--display);margin-left:1vw}
+#issSoon{font:600 1.2rem var(--display);color:var(--yard);margin-left:1vw}
+.iss{width:100%;font-size:1.05rem}
+.iss td{text-align:left;padding:1vh .6vw}
+.issPic{position:relative;height:13vh;flex:none;overflow:hidden}
+.issPic img{width:100%;height:100%;object-fit:contain;display:block;mix-blend-mode:screen;   /* whole station; black space blends into the panel, Earth fades at the sides */
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(to right,transparent,#000 18%,#000 82%,transparent)}
+.issPic span{position:absolute;right:8px;bottom:5px;font-size:.7rem;color:var(--muted)}
+.iss .when{font-family:var(--num);white-space:nowrap}
+#placeBtn{font-size:1.15rem;vertical-align:.25em}
+#radar.leaflet-container{background:var(--bg);font-family:var(--body)}
+#radar .leaflet-control-attribution{font-size:.7rem}   /* dark, not grey, while map pieces load */
+header button{font:500 .85rem var(--body);background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 10px;margin-left:.6vw}
+header button:focus-visible{outline:2px solid var(--accent)}
+/* ---------- TEST changes (tv-test.html only) ---------- */
+#testTag{font:700 .9rem var(--display);color:#000;background:var(--warn);border-radius:4px;padding:1px 8px;margin-left:.8vw;vertical-align:.35em}
+#summary{font:600 1.7rem/1.2 var(--display);color:var(--fg)}
+#summary:empty{display:none}
+.small,.sunmoon .small,.tenday,.eve div{font-size:1.25rem}   /* nothing that matters below about 2.4vh */
+table{font-size:1.25rem}
+.kv{font-size:1.25rem}
+#moonCredit,#issNote{display:none}
+.alert{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-left:1.2vw solid var(--bad)}
+.alert p{display:block;margin:.3vh 0 0;font:500 1.05rem var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+body.stale #nowTemp{color:var(--muted);opacity:.6}
+#todayHiLo{font:600 1.35rem var(--num);margin-top:.6vh}
+.frz{color:var(--cold);font-weight:700}
+.wet{color:var(--accent);font-weight:700}
+.tenday{grid-template-columns:repeat(7,minmax(0,1fr))}
+.tenday .num:first-of-type span{display:inline;font-size:1.25rem;margin:0 .3vw}   /* high and low side by side, saves a row */
+.tenday b{font-size:1.1rem;white-space:nowrap}
+.tenday .num.small,.tenday svg + span{display:none}   /* amounts are on the "Sky and rain" slide and the icon shows the sky; keeps room for the chart */
+.tenday svg{width:4.5vh;height:4.5vh}
+#tenday + .chart{min-height:24vh}   /* keep room for the temperature chart under the bigger tiles */
+.radarprog{height:.5vh;background:var(--line);border-radius:2px;margin-top:.5vh;overflow:hidden}
+.radarprog i{display:block;height:100%;width:0;background:var(--accent)}
+.dbz{display:inline-flex;align-items:center;gap:.5vw}
+.dbz i{display:inline-block;width:12vw;height:1vh;border-radius:2px;background:linear-gradient(to right,#04e9e7,#019ff4,#02fd02,#01c501,#fdf802,#fd9500,#fd0000,#bc0000,#f800fd)}
+</style>
+<script>window.CHART_FONT = Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.15);   // TEST: was .9   // chart text matches the page text size
+window.HOURS = 9; window.RADAR_ROTATE = true;</script>
+</head>
+<body>
+<header><span><h1 style="display:inline">Local Weather</h1><span id="testTag">TEST</span> <button id="placeBtn" type="button"></button><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
+<div id="summary"></div>
+<div id="alerts"></div>
+
+<div class="grid">
+  <section class="panel left">
+    <h2 id="radarTitle">Radar, local</h2>
+    <div id="radar"></div>
+    <div class="radarprog"><i id="radarProg"></i></div>
+    <div class="radarbar"><span class="small num" id="radarTime"></span><span class="small dbz" id="dbzKey">Light<i></i>Heavy</span><span class="small" id="warnKey"></span><button id="radarBtn" type="button" hidden>Pause</button></div>
+  </section>
+
+  <div class="right">
+    <section class="panel top">
+      <div class="big" id="nowTemp">--</div>
+      <div><h2 id="nowTitle">Now at the station</h2><div class="kv" id="nowKv"></div><div id="todayHiLo"></div><p class="small" id="nowAge"></p></div>
+      <div class="strip">
+        <div><h2>Rain and storms</h2><div class="callout" id="rainCall">Checking...</div></div>
+        <div><h2>Tonight's low</h2><div class="kv"><span>NWS</span><b id="lowNws">--</b><span class="yard">Station</span><b class="yard" id="lowYard">--</b></div><span id="frostFlag"></span></div>
+        <div><h2>Next 48 h</h2><div class="kv"><span>Snow</span><b id="snowAmt">--</b><span>Ice</span><b id="iceAmt">--</b></div></div>
+      </div>
+    </section>
+
+    <section class="panel rotor" id="rotor" style="padding:0">
+      <div class="slide on">
+        <div class="slidehead"><h2>7-day outlook</h2><span class="dots"></span></div>
+        <div class="tenday" id="tenday"></div>
+        <div class="chart"><canvas id="cTemp"></canvas></div>
+      </div>
+      <div class="slide">
+        <div class="slidehead"><h2 id="hourlyTitle">Next 9 hours at the station</h2><span class="dots"></span></div>
+        <table id="hourly"></table>
+        <h2>Evening sky, 7 PM to midnight</h2>
+        <div class="eve" id="evenings"></div>
+      </div>
+      <div class="slide">
+        <div class="slidehead"><h2>Sky and rain, 10 days</h2><span class="dots"></span></div>
+        <div class="chart"><canvas id="cSky"></canvas></div>
+        <div class="chart" style="flex:.85"><canvas id="cPrecip"></canvas></div>
+      </div>
+      <div class="slide">
+        <div class="slidehead"><h2>Sun and moon today</h2><span class="dots"></span></div>
+        <div class="sunmoon">
+          <div><h2>Sun</h2><div class="kv"><span>Sunrise</span><b id="sunRise">--</b><span>Sunset</span><b id="sunSet">--</b><span>Daylight</span><b id="dayLen">--</b></div><p class="small" id="dayChange"></p></div>
+          <div class="moon"><svg viewBox="0 0 100 100" id="moonPic"></svg><div><div class="callout" id="moonName">--</div><div class="num" id="moonLit"></div><p class="small" id="moonNext"></p><p class="small" id="moonCredit" style="font-size:.7rem"></p></div></div>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="slidehead"><h2>Space Station sightings from home</h2><span class="dots"></span></div>
+        <div class="issPic"><img src="https://images-assets.nasa.gov/image/iss056e201248/iss056e201248~medium.jpg" alt="" onerror="this.parentNode.remove()"><span>Photo: NASA</span></div>
+        <table class="iss" id="issTable"><tr><td>Working out passes...</td></tr></table>
+        <p class="small" id="issNote"></p>
+      </div>
+      <div class="slide">
+        <div class="slidehead"><h2>Wind, 10 days</h2><span class="dots"></span></div>
+        <div class="chart"><canvas id="cWind"></canvas></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" integrity="sha384-dug+JxfBvklEQdJ4AYuBBAIScUz0bVN73xpy273gcAwHjb3qI0fXmuYNaNfdyYJG" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js" integrity="sha384-e6V1JVpc+kVNTxT0gEOla7yL4c92Romsw7itPoipfzHbEjzUwPhTv6oeVDMHHzqT" crossorigin="anonymous"></script>
+<script>document.write('<script src="app-test.js?t=' + Date.now() + '"><\/script>');   // always the newest app.js, so an update never mixes old and new files</script>
+<script>
+// Rotate the detail panel. The 10-day outlook is the home view: 20 seconds, the others 10.
+(function () {
+  const slides = document.querySelectorAll("#rotor .slide");
+  let n = 0;
+  function show() {
+    slides.forEach((s, i) => {
+      s.classList.toggle("on", i === n);
+      s.querySelector(".dots").innerHTML = Array.from(slides, (_, j) => `<span class="${j === n ? "on" : ""}"></span>`).join("");
+    });
+  }
+  function next() { show(); setTimeout(() => { n = (n + 1) % slides.length; next(); }, 20000); }   // TEST: every slide 20 s, same pace as the radar views
+  next();
+})();
+
+// Themes. app.js calls onData once the station, forecast and alerts are in, before the charts are drawn.
+// Daylight theme between sunrise and sunset; the page reloads every 15 minutes, so it switches within 15 minutes.
+let issPasses = [];
+window.onData = function (latest, model, alerts) {
+  const root = document.documentElement, body = document.body;
+  const nowLocal = new Date().toLocaleString("sv-SE", {timeZone: TZ}).replace(" ", "T").slice(0, 16);
+  if (model && model.daily.sunrise) window.SUNTIMES = [model.daily.sunrise[0].slice(11, 16), model.daily.sunset[0].slice(11, 16)];
+  if (model && model.daily.sunrise) root.classList.toggle("day", nowLocal >= model.daily.sunrise[0] && nowLocal < model.daily.sunset[0]);
+  body.classList.toggle("freezing", !!(latest && latest.temp != null && latest.temp <= 32));
+  body.classList.toggle("alerting", alerts.length > 0);
+  // TEST: today's forecast high and low under the current reading
+  if (model && model.daily.temperature_2m_max) document.getElementById("todayHiLo").innerHTML =
+    `<span class="hi">High ${Math.round(model.daily.temperature_2m_max[0])}°</span> &nbsp; <span class="lo">Low ${Math.round(model.daily.temperature_2m_min[0])}°</span>`;
+  // Old reading: say how old, so a stalled station or data job doesn't pass for current conditions
+  const mins = latest && latest.time ? Math.round((Date.now() - Date.parse(latest.time)) / 60000) : 0;
+  body.classList.toggle("stale", mins > 30);
+  if (mins > 30) document.getElementById("nowAge").textContent = `${latest.source ? "Reading" : "Station reading"} is ${mins < 120 ? mins + " min" : Math.floor(mins / 60) + " h " + mins % 60 + " min"} old`;
+  setTimeout(findIssPasses, 500);   // after the charts, so the page draws first
+};
+
+// Holidays: a colored greeting next to the title for the whole holiday window, plus a light animation over the radar
+// for some of them. Add ?date=2026-12-20 to the page address to preview a date. Also late-night dim (11 PM to 6 AM)
+// and a small screen nudge every 10 minutes to protect OLED TVs from burn-in.
+function holiday(d) {
+  const y = d.getFullYear(), D = (m, day) => new Date(y, m - 1, day), add = (dt, n) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() + n);
+  const nth = (m, wd, n) => { const f = new Date(y, m - 1, 1); return new Date(y, m - 1, 1 + (wd - f.getDay() + 7) % 7 + 7 * (n - 1)); };
+  const last = (m, wd) => { const l = new Date(y, m, 0); return new Date(y, m - 1, l.getDate() - (l.getDay() - wd + 7) % 7); };
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, h = (19 * a + b - Math.floor(b / 4) - Math.floor((b - Math.floor((b + 8) / 25) + 1) / 3) + 15) % 30;
+  const l = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - h - c % 4) % 7, mm = Math.floor((a + 11 * h + 22 * l) / 451);
+  const easter = new Date(y, Math.floor((h + l - 7 * mm + 114) / 31) - 1, (h + l - 7 * mm + 114) % 31 + 1);
+  const mom = nth(5, 0, 2), mem = last(5, 1), dad = nth(6, 0, 3), labor = nth(9, 1, 1), thanks = nth(11, 4, 4);
+  const list = [
+    [D(1, 1), D(1, 1), "Happy New Year", "#e8c547", "fireworks"],
+    [D(2, 10), D(2, 14), "Happy Valentine's Day", "#e0607e", "hearts"],
+    [D(3, 14), D(3, 17), "Happy St. Patrick's Day", "#3fae5a", "shamrocks"],
+    [add(easter, -2), easter, "Happy Easter", "#c79be0", "petals"],
+    [add(mom, -1), mom, "Happy Mother's Day", "#e48ab0", "petals"],
+    [add(mem, -2), mem, "Memorial Day: remembering those who served", "#9fb4c8", null],
+    [add(dad, -1), dad, "Happy Father's Day", "#6fb0de", null],
+    [D(7, 1), D(7, 5), "Happy Fourth of July", "#e05252", "fireworks"],
+    [add(labor, -2), labor, "Happy Labor Day", "#d2b48c", null],
+    [D(10, 25), D(10, 31), "Happy Halloween", "#f08a24", "leaves"],
+    [add(thanks, -3), add(thanks, 1), "Happy Thanksgiving", "#d08a3a", "leaves"],
+    [D(12, 1), D(12, 26), "Merry Christmas", "#d64545", "snow"],
+    [D(12, 31), D(12, 31), "Happy New Year's Eve", "#e8c547", "fireworks"]];
+  const today = new Date(y, d.getMonth(), d.getDate());
+  return list.find(([s, e]) => today >= s && today <= e);
+}
+
+// Light animation on a see-through layer over the radar. About 25 slow pieces, 30 frames a second, nothing clickable.
+const fx = (function () {
+  let kind = null, parts = [], sparks = [], cv = null, g = null, frame = 0, nextBurst = 0, running = false, u = 1;
+  const rnd = (a, b) => a + Math.random() * (b - a), pick = a => a[Math.floor(Math.random() * a.length)];
+  const COLORS = {leaves: ["#d9792b", "#b5462a", "#e0a53a", "#8c5a2b"], petals: ["#f6c1d1", "#f9e3a3", "#c9e4f6", "#d8c9f0"],
+    hearts: ["#e0607e", "#f08aa0"], shamrocks: ["#3fae5a", "#5cc477"], snow: ["#ffffff"]};
+  const BURST = {"Happy Fourth of July": ["#e05252", "#ffffff", "#5b8def"]};
+  let burstColors = ["#e8c547", "#ffffff", "#f08a24", "#c48ae0"];
+  function size() { const r = document.getElementById("radar"); Object.assign(cv.style, {left: r.offsetLeft + "px", top: r.offsetTop + "px"}); cv.width = r.offsetWidth; cv.height = r.offsetHeight; u = Math.max(1, cv.width / 500); }   // u scales sizes and speeds to the screen
+  function piece(top) {
+    const up = kind === "hearts";
+    return {x: rnd(0, cv.width), y: top ? rnd(0, cv.height) : (up ? cv.height + 12 : -12), vy: rnd(0.3, 0.8) * u * (up ? -1 : 1), s: (kind === "snow" ? rnd(1.5, 3.5) : rnd(6, 10)) * u,
+      sway: rnd(0, 6.28), rot: rnd(0, 6.28), spin: rnd(-0.03, 0.03), c: pick(COLORS[kind])};
+  }
+  function heart(p) { g.beginPath(); g.moveTo(0, p.s * 0.35); g.bezierCurveTo(-p.s, -p.s * 0.4, -p.s * 0.4, -p.s, 0, -p.s * 0.35); g.bezierCurveTo(p.s * 0.4, -p.s, p.s, -p.s * 0.4, 0, p.s * 0.35); g.fill(); }
+  function shamrock(p) { const r = p.s * 0.38; for (const a of [0, 2.09, 4.19]) { g.beginPath(); g.arc(Math.cos(a - 1.57) * r, Math.sin(a - 1.57) * r, r, 0, 6.28); g.fill(); } g.fillRect(-0.7, 0, 1.4, p.s * 0.9); }
+  function draw() {
+    if (!kind) { running = false; return; }
+    requestAnimationFrame(draw);
+    if (frame++ % 2) return;
+    g.clearRect(0, 0, cv.width, cv.height);
+    if (kind === "fireworks") {
+      if (Date.now() > nextBurst) {
+        nextBurst = Date.now() + rnd(25000, 45000);
+        const x = rnd(cv.width * 0.2, cv.width * 0.8), y = rnd(cv.height * 0.15, cv.height * 0.45), c = pick(burstColors);
+        for (let i = 0; i < 70; i++) { const a = i / 70 * 6.28, v = rnd(1.5, 3.5) * u; sparks.push({x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, c: Math.random() < 0.25 ? "#ffffff" : c}); }
+      }
+      sparks = sparks.filter(s => s.life > 0);
+      for (const s of sparks) { s.x += s.vx; s.y += s.vy; s.vy += 0.04 * u; s.vx *= 0.98; s.life -= 0.012; g.globalAlpha = Math.max(0, s.life); g.fillStyle = s.c; g.fillRect(s.x, s.y, 3.5 * u, 3.5 * u); }
+      g.globalAlpha = 1;
+      return;
+    }
+    for (const p of parts) {
+      p.sway += 0.02; p.rot += p.spin; p.y += p.vy; p.x += Math.sin(p.sway) * 0.5 * u;
+      if (p.y > cv.height + 14 || p.y < -14) Object.assign(p, piece(false));
+      g.save(); g.translate(p.x, p.y); g.rotate(p.rot); g.globalAlpha = 0.8; g.fillStyle = p.c;
+      if (kind === "snow") { g.beginPath(); g.arc(0, 0, p.s, 0, 6.28); g.fill(); }
+      else if (kind === "hearts") heart(p);
+      else if (kind === "shamrocks") shamrock(p);
+      else { g.beginPath(); g.ellipse(0, 0, p.s, p.s * 0.45, 0, 0, 6.28); g.fill(); }
+      g.restore();
+    }
+  }
+  return function set(newKind, name) {
+    if (newKind === kind) return;
+    kind = newKind; parts = []; sparks = [];
+    if (!kind) { if (cv) cv.remove(); cv = null; return; }
+    if (!cv) {
+      cv = document.createElement("canvas"); cv.id = "holidayFx";
+      document.querySelector(".left").appendChild(cv); g = cv.getContext("2d");
+      size(); addEventListener("resize", () => cv && size());
+    }
+    burstColors = BURST[name] || ["#e8c547", "#ffffff", "#f08a24", "#c48ae0"];
+    nextBurst = Date.now() + 2000;
+    if (kind !== "fireworks") for (let i = 0; i < 25; i++) parts.push(piece(true));
+    if (!running) { running = true; draw(); }   // one animation loop, even when the holiday changes
+  };
+})();
+
+(function () {
+  const preview = new URLSearchParams(location.search).get("date");
+  function check() {
+    const local = new Date(new Date().toLocaleString("en-US", {timeZone: TZ})), h = local.getHours();
+    const dim = h >= 23 || h < 6, wasDim = document.body.classList.contains("dim");
+    document.body.classList.toggle("dim", dim);
+    // TEST: at night the radar loop holds on the latest frame and the holiday animation stops
+    if (dim && !wasDim && timer) { clearInterval(timer); timer = null; fi = frames.length - 1; step(); }
+    if (!dim && wasDim && !timer && frames.length) play();
+    const hol = holiday(preview ? new Date(preview + "T12:00") : local), el = document.getElementById("holiday");
+    el.textContent = hol ? hol[2] : ""; el.style.color = hol ? hol[3] : "";
+    fx(hol && !dim ? hol[4] : null, hol && hol[2]);
+  }
+  check(); setInterval(check, 60000);
+  setInterval(() => { const r = () => Math.round(Math.random() * 8 - 4); document.body.style.transform = `translate(${r()}px,${r()}px)`; }, 600000);
+})();
+
+// Space Station passes, using the orbit data the What's Overhead site refreshes every day.
+// Same math as that app: a pass counts when the station is above 10 degrees, lit by the sun, and the yard's sky is dark.
+async function findIssPasses() {
+  const note = document.getElementById("issNote"), table = document.getElementById("issTable");
+  try {
+    const text = await fetch("/overhead/data/stations.tle", {cache: "no-store"}).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
+    const lines = text.split(/\r?\n/), i = lines.findIndex(l => l.startsWith("1 25544"));
+    const rec = satellite.twoline2satrec(lines[i], lines[i + 1]);
+    const RAD = Math.PI / 180, obs = {latitude: LAT * RAD, longitude: LON * RAD, height: 0.25};
+    const sunAt = date => {   // low-precision sun position, accurate to about 0.01 degree
+      const n = date.getTime() / 864e5 + 2440587.5 - 2451545, L = (280.46 + 0.9856474 * n) % 360, g = ((357.528 + 0.9856003 * n) % 360) * RAD;
+      const lam = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RAD, eps = (23.439 - 4e-7 * n) * RAD;
+      return {x: Math.cos(lam), y: Math.cos(eps) * Math.sin(lam), z: Math.sin(eps) * Math.sin(lam)};
+    };
+    const passes = []; let run = null;
+    for (let t = Date.now(), end = t + 10 * 864e5; t < end; t += 10000) {
+      const date = new Date(t), gmst = satellite.gstime(date), u = sunAt(date);
+      const sunEl = satellite.ecfToLookAngles(obs, satellite.eciToEcf({x: u.x * 1.5e8, y: u.y * 1.5e8, z: u.z * 1.5e8}, gmst)).elevation / RAD;
+      let vis = false, look = null;
+      if (sunEl < -6) {
+        const p = satellite.propagate(rec, date).position;
+        if (p) {
+          look = satellite.ecfToLookAngles(obs, satellite.eciToEcf(p, gmst));
+          const proj = p.x * u.x + p.y * u.y + p.z * u.z, lit = proj >= 0 || Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z - proj * proj) >= 6371;
+          vis = look.elevation > 0 && lit;
+        }
+      } else t += 50000;   // daylight: skip ahead faster
+      if (vis) {
+        const el = look.elevation / RAD, az = look.azimuth / RAD;
+        if (!run) run = {start: t, startAz: az, max: el, end: t, endAz: az};
+        if (el > run.max) run.max = el;
+        run.end = t; run.endAz = az;
+      } else if (run) { if (run.max >= 10) passes.push(run); run = null; }
+    }
+    issPasses = passes;
+    const dir = az => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(az / 45) % 8];
+    const height = el => el >= 60 ? "Nearly overhead" : el >= 30 ? "Halfway up the sky" : "Low in the sky";
+    const when = t => new Date(t).toLocaleString("en-US", {timeZone: TZ, weekday: "short", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit"}).replace(",", "");
+    table.innerHTML = passes.length ? passes.slice(0, 6).map(r => `<tr><td class="when">${when(r.start)}</td><td>${dir(r.startAz)} to ${dir(r.endAz)}</td><td>${height(r.max)}</td><td class="num">${Math.max(1, Math.round((r.end - r.start) / 60000))} min</td></tr>`).join("")
+      : "<tr><td>No visible passes in the next 10 days. The station is up there, but it's either in daylight or in Earth's shadow when it crosses.</td></tr>";
+    note.textContent = "Times are when it first appears. Looks like a bright, steady star moving across the sky, no blinking.";
+  } catch (e) { table.innerHTML = "<tr><td>Couldn't work out passes right now.</td></tr>"; }
+}
+
+// Date and time in the header, Michigan time, refreshed every 15 seconds.
+(function () {
+  function tick() {
+    const now = new Date(), tz = TZ;
+    document.getElementById("today").textContent = now.toLocaleDateString("en-US", {timeZone: tz, weekday: "long", month: "long", day: "numeric", year: "numeric"});
+    document.getElementById("clock").textContent = now.toLocaleTimeString("en-US", {timeZone: tz, hour: "numeric", minute: "2-digit"});
+    const soon = issPasses.find(r => r.end > now.getTime() && r.start - now.getTime() < 15 * 60000);
+    const mins = soon ? Math.round((soon.start - now.getTime()) / 60000) : 0;
+    document.getElementById("issSoon").textContent = !soon ? "" : mins > 0 ? `Space Station in ${mins} min` : "Space Station overhead now";
+  }
+  tick(); setInterval(tick, 15000);
+})();
+</script>
+</body>
+</html>
