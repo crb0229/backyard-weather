@@ -143,6 +143,6 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
-<script src="app.js"></script>
+<script>document.write('<script src="app.js?t=' + Date.now() + '"><\/script>');   // always the newest app.js, so an update never mixes old and new files</script>
 </body>
 </html>
