@@ -256,12 +256,14 @@ window.onData = function (latest, model, alerts) {
     // TEST: at night the radar loop holds on the latest frame and the holiday animation stops
     if (dim && !wasDim && timer) { clearInterval(timer); timer = null; fi = frames.length - 1; step(); }
     if (!dim && wasDim && !timer && frames.length) play();
-    const when = preview ? new Date(preview + "T12:00") : local, theme = HOLIDAY.holidayFor(when);
-    HOLIDAY.apply(theme, !HOLIDAY.isOff(HOLIDAY.store, theme, when), when);
-    if (dim && !preview) ART.stopIntro();   // nothing animates during the night dim
-    HOLIDAY.maybeIntro(theme, when, preview);
+    try {   // a holiday script that failed to load must never stop the dim, the radar pause or the burn-in nudge
+      const when = preview ? new Date(preview + "T12:00") : local, theme = HOLIDAY.holidayFor(when);
+      HOLIDAY.apply(theme, !HOLIDAY.isOff(HOLIDAY.store, theme, when), when);
+      if (dim && !preview) ART.stopIntro();   // nothing animates during the night dim
+      HOLIDAY.maybeIntro(theme, when, preview);
+    } catch (e) {}
   }
-  check(); setInterval(check, 60000);
+  setInterval(check, 60000); check();   // the timer first, so one failed check cannot stop the next ones
   setInterval(() => { const r = () => Math.round(Math.random() * 8 - 4); document.body.style.transform = `translate(${r()}px,${r()}px)`; }, 600000);
 })();
 

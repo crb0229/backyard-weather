@@ -37,12 +37,19 @@ def case(fn):
 
 class Ctx:
     def __init__(self, browser, out):
-        self.browser, self.out = browser, out
+        self.browser, self.out, self.open = browser, out, []
+
+    def close_all(self):
+        """Close every window a case opened, so later cases are not slowed down."""
+        for ctx in self.open:
+            ctx.close()
+        self.open = []
 
     def page(self, date=None, clock=None, init=None, block=None, session=False, reduced=False, wait=2500):
         """Open tv-test.html. clock: local datetime to freeze the page clock at (it still runs).
         init: JS run before page scripts. block: URL glob answered with 404. session: pretend a reload (session flag set)."""
         ctx = self.browser.new_context(viewport={"width": 1920, "height": 1080}, reduced_motion="reduce" if reduced else "no-preference")
+        self.open.append(ctx)
         p = ctx.new_page()
         p.errors = []
         p.on("pageerror", lambda e: p.errors.append(str(e)))
@@ -321,6 +328,49 @@ def deathstar_replaces_moon(c):
     no_errors(p)
 
 
+# ---------- Final review fixes ----------
+
+BLOCK_STORAGE = "Storage.prototype.setItem = function(){ throw new Error('blocked') }; Storage.prototype.getItem = function(){ throw new Error('blocked') };"
+
+
+@case
+def blocked_storage_no_replay_on_reload(c):
+    p = c.page(clock=dt.datetime(2026, 12, 20, 14, 0), init=BLOCK_STORAGE)
+    assert has_intro(p), "no animation on a daytime open"
+    p.clock.set_system_time(dt.datetime(2026, 12, 20, 14, 15))   # the automatic reload
+    p.reload()
+    p.wait_for_timeout(2500)
+    assert not has_intro(p), "animation replayed on the automatic reload with storage blocked"
+    no_errors(p)
+
+
+@case
+def dim_ends_even_if_theme_script_fails(c):
+    p = c.page(clock=dt.datetime(2026, 12, 20, 5, 59, 30), block="**/holiday-art-test.js*")
+    assert p.evaluate("document.body.classList.contains('dim')"), "should start dimmed at 5:59"
+    p.errors.clear()
+    p.clock.run_for(65000)
+    p.wait_for_timeout(300)
+    assert not p.evaluate("document.body.classList.contains('dim')"), "screen stayed dim after 6:00 when a theme script failed"
+
+
+@case
+def no_placeholder_dots_while_sprites_load(c):
+    ctx = c.browser.new_context(viewport={"width": 1920, "height": 1080})
+    p = ctx.new_page()
+    p.add_init_script("try{localStorage.setItem('wx:loc', JSON.stringify({station:true}))}catch(e){}")
+    held = []
+    p.route("**/img/holiday/sprite-*", lambda route: held.append(route))   # hold the picture requests open: still loading
+    p.goto(f"{BASE}/tv-test.html?date=2026-12-20", wait_until="commit")
+    p.wait_for_selector("#holIntro", timeout=5000)
+    p.wait_for_timeout(400)
+    ink = p.evaluate("(() => { const c = document.getElementById('holIntro'); if (!c) return -1; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; })()")
+    assert ink == 0, f"{ink} placeholder pixels drawn before the snowflake pictures loaded"
+    for r in held:
+        r.continue_()
+    ctx.close()
+
+
 def main():
     out, flt = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else "")
     os.makedirs(out, exist_ok=True)
@@ -342,6 +392,7 @@ def main():
             except Exception as e:
                 failed += 1
                 print(f"FAIL {t.__name__}: {e if isinstance(e, AssertionError) else traceback.format_exc(limit=1)}")
+            c.close_all()
         browser.close()
     srv.shutdown()
     print(f"{len([t for t in CASES if flt in t.__name__]) - failed} passed, {failed} failed")

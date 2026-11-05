@@ -16,6 +16,7 @@
   const THEMES = [
     {id: "newyear", main: true, range: y => [[D(y, 1, 1), D(y, 1, 1)], [D(y, 12, 31), D(y, 12, 31)]],
       greeting: d => (d.getMonth() === 11 ? "Happy New Year's Eve" : "Happy New Year"),
+      offYear: d => (d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear()),   // Dec 31 and the Jan 1 after it are one holiday
       font: {family: "Great Vibes", css: "Great+Vibes"}, palette: {bg: "#121216", panel: "#1b1b22", line: "#4a4030", title: "#e8c86a"},
       picture: {img: "img/holiday/newyear-glasses.webp"}, intro: "confetti"},
     greet("valentines", "Happy Valentine's Day", "#e0607e", y => [[D(y, 2, 10), D(y, 2, 14)]]),
@@ -52,16 +53,20 @@
   const isNight = d => d.getHours() >= 23 || d.getHours() < 6;
 
   // Storage that never throws: private windows and locked-down browsers can refuse it. Anything it refuses is kept
-  // in memory instead, so the on/off button still holds until the page closes.
-  function safeStore(s) {
-    const mem = {};
+  // in the browser tab's name instead (window.name survives the automatic reloads), so Off, "already played today"
+  // and "this is a reload" all still hold until the tab or app closes. tag keeps the two stores apart.
+  const NAME = "wxhol:";
+  function nameData() { try { const n = root.name; return typeof n === "string" && n.startsWith(NAME) ? JSON.parse(n.slice(NAME.length)) : {}; } catch (e) { return {}; } }
+  function safeStore(s, tag) {
+    const keep = !!tag && typeof root.name === "string", mem = keep ? nameData()[tag] || {} : {};
+    const save = () => { if (keep) { const all = nameData(); all[tag] = mem; try { root.name = NAME + JSON.stringify(all); } catch (e) {} } };
     return {
       get(k) { if (k in mem) return mem[k]; try { return s ? s.getItem(k) : null; } catch (e) { return null; } },
-      set(k, v) { try { if (!s) throw 0; s.setItem(k, v); delete mem[k]; } catch (e) { mem[k] = String(v); } },
-      del(k) { delete mem[k]; try { if (s) s.removeItem(k); } catch (e) {} }};
+      set(k, v) { try { if (!s) throw 0; s.setItem(k, v); if (k in mem) { delete mem[k]; save(); } } catch (e) { mem[k] = String(v); save(); } },
+      del(k) { if (k in mem) { delete mem[k]; save(); } try { if (s) s.removeItem(k); } catch (e) {} }};
   }
   const OFF = "wx:themeOff", PLAYED = "wx:introPlayed";
-  const offTag = (t, d) => `${t.id}-${d.getFullYear()}`;
+  const offTag = (t, d) => `${t.id}-${t.offYear ? t.offYear(d) : d.getFullYear()}`;   // one tag per holiday, even across midnight on New Year's
   const isOff = (store, t, d) => !!t && store.get(OFF) === offTag(t, d);   // Off lasts for this holiday only
   function setOff(store, t, d, off) { if (off) store.set(OFF, offTag(t, d)); else if (store.get(OFF) === offTag(t, d)) store.del(OFF); }
 
@@ -184,8 +189,8 @@
 
   const H = {THEMES, holidayFor, dayKey, isNight, moonPhase, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply, toggle, maybeIntro, onThemeOn};
   if (typeof window !== "undefined") {
-    H.store = safeStore((() => { try { return window.localStorage; } catch (e) { return null; } })());
-    H.session = safeStore((() => { try { return window.sessionStorage; } catch (e) { return null; } })());
+    H.store = safeStore((() => { try { return window.localStorage; } catch (e) { return null; } })(), "local");
+    H.session = safeStore((() => { try { return window.sessionStorage; } catch (e) { return null; } })(), "session");
     window.addEventListener("resize", () => fitHeader());
     // Refit whenever header text changes: the update time and the clock are filled in after the weather loads
     let queued = false;

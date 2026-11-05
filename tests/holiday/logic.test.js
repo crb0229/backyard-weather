@@ -89,3 +89,10 @@ test("helpers", () => {
   assert.strictEqual(H.isNight(day(2026, 1, 1, 5, 59)), true);
   assert.strictEqual(H.isNight(day(2026, 1, 1, 6)), false);
 });
+
+test("newYearOffSpansMidnight", () => {
+  const s = memStore(), ny = H.holidayFor(day(2026, 12, 31));
+  H.setOff(s, ny, day(2026, 12, 31, 21), true);
+  assert.strictEqual(H.isOff(s, ny, day(2027, 1, 1, 9)), true, "Off on New Year's Eve must last through New Year's Day");
+  assert.strictEqual(H.isOff(s, ny, day(2027, 12, 31, 21)), false, "but not into the next New Year's");
+});

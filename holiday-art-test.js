@@ -5,12 +5,13 @@
   const DUR = 8;
   const rnd = (a, b) => a + Math.random() * (b - a);
 
-  // Sprite pictures made for the animations; an effect draws a simple shape instead until (or unless) one loads
-  const SPR = {};
+  // Sprite pictures made for the animations. While one is still loading its pieces are not drawn at all (no placeholder
+  // dots); only if it failed to load does an effect draw a simple shape instead.
+  const SPR = {}, WAIT = {};
   function sprite(name) {
     if (!SPR[name]) { const i = new Image(); i.src = `img/holiday/sprite-${name}.webp`; SPR[name] = i; }
     const i = SPR[name];
-    return i.complete && i.naturalWidth ? i : null;
+    return i.complete && i.naturalWidth ? i : i.complete ? null : WAIT;
   }
   function drawSprite(g, img, x, y, size, rot, alpha) {
     g.save(); g.translate(x, y); g.rotate(rot); g.globalAlpha *= alpha;
@@ -26,6 +27,7 @@
       st.f = st.f || Array.from({length: 45}, () => ({x: rnd(0, w), y: rnd(-0.7 * h, 0), s: rnd(16, 40) * u, v: rnd(0.07, 0.13) * h,
         sw: rnd(10, 30) * u, fq: rnd(0.4, 0.9), ph: rnd(0, 6.3), r: rnd(-0.4, 0.4)}));
       const img = sprite("snowflake");
+      if (img === WAIT) return;   // the snowflake picture is still loading
       for (const f of st.f) {
         const x = f.x + Math.sin(t * f.fq + f.ph) * f.sw, y = f.y + f.v * t;
         if (img) drawSprite(g, img, x, y, f.s, f.ph + f.r * t, 0.85);
@@ -45,7 +47,7 @@
         g.globalAlpha *= 0.9; g.fillStyle = p.c; g.fillRect(-p.wd / 2, -p.ht / 2, p.wd, p.ht); g.restore();
       }
       const img = sprite("confetti");
-      if (img) for (const k of st.c) drawSprite(g, img, k.x, k.y + k.v * t, k.s, k.r + t * 0.3, 0.9);
+      if (img && img !== WAIT) for (const k of st.c) drawSprite(g, img, k.x, k.y + k.v * t, k.s, k.r + t * 0.3, 0.9);
       g.lineWidth = 1.2 * u;
       for (const b of st.b) {
         const x = b.x + Math.sin(t * 1.5 + b.ph) * 6 * u, y = b.y - b.v * t;
@@ -59,6 +61,7 @@
       st.b = st.b || Array.from({length: 4}, (_, i) => ({t0: i * 0.9 + rnd(0, 0.4), dir: i % 2 ? -1 : 1, y: rnd(0.12, 0.45) * h, s: rnd(70, 110) * u,
         amp: rnd(25, 60) * u, dur: rnd(4.2, 5.2), fq: rnd(9, 12)}));
       const img = sprite("bat");
+      if (img === WAIT) return;   // the bat picture is still loading
       for (const b of st.b) {
         const k = (t - b.t0) / b.dur;
         if (k < 0 || k > 1) continue;
@@ -77,6 +80,7 @@
         sw: rnd(30, 70) * u, fq: rnd(0.5, 1), ph: rnd(0, 6.3), flip: rnd(1.2, 2.4), spin: rnd(-0.6, 0.6)}));
       for (const l of st.l) {
         const img = sprite(l.n), x = l.x + Math.sin(t * l.fq + l.ph) * l.sw, y = l.y + l.v * t;
+        if (img === WAIT) continue;   // this leaf picture is still loading
         g.save(); g.translate(x, y); g.rotate(l.ph + l.spin * t); g.scale(Math.cos(t * l.flip + l.ph), 1);
         if (img) g.drawImage(img, -l.s / 2, -l.s / 2, l.s, l.s);
         else { g.fillStyle = "#c56a2c"; g.beginPath(); g.ellipse(0, 0, l.s / 2, l.s / 4, 0, 0, 6.3); g.fill(); }
