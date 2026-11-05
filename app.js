@@ -1,5 +1,9 @@
-const TZ = "America/Detroit";
-let LAT = 42.789, LON = -85.516;
+// Location: the backyard station, or a place the viewer picked (saved on this device only).
+const STORE = (() => { try { localStorage.setItem("wx:t", "1"); localStorage.removeItem("wx:t"); return true; } catch (e) { return false; } })();
+const LOC = (() => { try { return JSON.parse(localStorage.getItem("wx:loc")); } catch (e) { return null; } })();
+const STATION = !LOC || !!LOC.station;
+const TZ = (LOC && LOC.tz) || "America/Detroit";
+let LAT = (LOC && LOC.lat) || 42.79, LON = (LOC && LOC.lon) || -85.52, MAP = null;
 // Missing sections (the TV page leaves some out) get a throwaway element so nothing breaks
 const $ = id => document.getElementById(id) || document.createElement("div");
 const TVF = window.CHART_FONT || 10, HOURS = window.HOURS || 24;   // the TV page sets bigger text and fewer hours
@@ -16,6 +20,7 @@ const compass = d => d == null ? "" : ["N","NE","E","SE","S","SW","W","NW"][Math
 let corr = null;
 function yard(v, t, val) {          // t = "YYYY-MM-DDTHH", local time
   const c = corr && corr.vars[v];
+  if (!STATION) return val;          // another location: plain model forecast, no station correction
   if (!c || val == null) return null;
   if (!c.on) return val;            // correction didn't beat the model at this yard, so use the model as-is
   const m = +t.slice(5, 7), h = +t.slice(11, 13);
@@ -25,12 +30,23 @@ function yard(v, t, val) {          // t = "YYYY-MM-DDTHH", local time
 }
 
 async function main() {
-  const [latest, correction] = await Promise.all([get("data/latest.json").catch(() => null), get("data/correction.json").catch(() => null)]);
+  if (!LOC) {   // first visit on this device: ask where. Devices already using the TV page (music set) stay on the station.
+    let old = !STORE;
+    try { old = old || localStorage.getItem("wx:music") != null; } catch (e) {}
+    if (!old) return picker(true);
+    saveLoc({station: true});
+  }
+  $("placeBtn").textContent = STATION ? "Caledonia, MI" : LOC.name;
+  $("placeBtn").onclick = () => picker(false);
+  const [latest, correction] = STATION ? await Promise.all([get("data/latest.json").catch(() => null), get("data/correction.json").catch(() => null)]) : [null, null];
   corr = correction;
   if (latest) { LAT = latest.lat; LON = latest.lon; showNow(latest); }
-  else $("nowAge").textContent = "Station data not collected yet.";
+  else if (STATION) $("nowAge").textContent = "Station data not collected yet.";
+  if (!STATION) stationOnly();
   try { radar(); } catch (e) { note("radar map didn't load"); }
   const ptP = get(`https://api.weather.gov/points/${LAT.toFixed(4)},${LON.toFixed(4)}`).then(r => r.properties);
+  ptP.then(pt => warnOutlines(MAP, pt.relativeLocation.properties.state)).catch(() => note("warning outlines didn't load"));
+  const obsP = STATION ? Promise.resolve(latest) : nearestObs(ptP).then(o => { showNow(o); return o; }).catch(() => { $("nowAge").textContent = "No recent reading from a nearby NWS station."; return null; });
   const nwsGet = k => ptP.then(pt => get(pt[k]));   // each NWS piece loads on its own, so one failure doesn't blank the page
   const om = get("https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
     latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 10,
@@ -40,12 +56,12 @@ async function main() {
     minutely_15: "precipitation"}));
   const results = await Promise.allSettled([
     get(`https://api.weather.gov/alerts/active?point=${LAT.toFixed(4)},${LON.toFixed(4)}`),
-    nwsGet("forecast"), nwsGet("forecastHourly"), nwsGet("forecastGridData"), om]);
-  const [alerts, daily, hourly, grid, model] = results.map(r => r.status === "fulfilled" ? r.value : null);
-  if (window.onData) try { window.onData(latest, model, alerts ? alerts.features : []); } catch (e) { note("theme didn't load"); }   // the TV page sets its theme here, before the charts read the colors
+    nwsGet("forecast"), nwsGet("forecastHourly"), nwsGet("forecastGridData"), om, obsP]);
+  const [alerts, daily, hourly, grid, model, cur] = results.map(r => r.status === "fulfilled" ? r.value : null);
+  if (window.onData) try { window.onData(cur, model, alerts ? alerts.features : []); } catch (e) { note("theme didn't load"); }   // the TV page sets its theme here, before the charts read the colors
   if (alerts) showAlerts(alerts.features);
   if (daily) showDays(daily.properties.periods);
-  if (model) { showRain(model, latest); showEvenings(model); showSunMoon(model); try { showTenDay(model); } catch (e) { note("charts didn't load"); } }
+  if (model) { showRain(model, cur); showEvenings(model); showSunMoon(model); try { showTenDay(model); } catch (e) { note("charts didn't load"); } }
   showHourly(hourly && hourly.properties.periods, model);
   showLow(daily && daily.properties.periods, model);
   if (grid) showSnow(grid.properties, model);
@@ -55,12 +71,99 @@ async function main() {
 
 function showNow(s) {
   $("nowTemp").textContent = f0(s.temp) + "°";
-  const rows = [["Feels", f0(s.feels) + "°"], ["Dew pt", f0(s.dew) + "°"], ["Wind", `${compass(s.winddir)} ${f0(s.wind)}`],
-    ["Gust", `${f0(s.gust)} (max ${f0(s.maxgust_today)})`], ["Rain today", nz(s.rain_today, 0).toFixed(2) + '"'],
-    ["Rain rate", nz(s.rain_rate, 0).toFixed(2) + '"/h'], ["Humidity", f0(s.humidity) + "%"], ["Pressure", s.pressure ? s.pressure.toFixed(2) : "--"]];
-  $("nowKv").innerHTML = rows.map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join("");
+  // Rows with no reading are left out (NWS stations don't report rain totals, and often no gusts)
+  const rows = [["Feels", s.feels, v => f0(v) + "°"], ["Dew pt", s.dew, v => f0(v) + "°"], ["Wind", s.wind, v => `${compass(s.winddir)} ${f0(v)}`],
+    ["Gust", s.gust, v => s.maxgust_today == null ? f0(v) : `${f0(v)} (max ${f0(s.maxgust_today)})`], ["Rain today", s.rain_today, v => v.toFixed(2) + '"'],
+    ["Rain rate", s.rain_rate, v => v.toFixed(2) + '"/h'], ["Humidity", s.humidity, v => f0(v) + "%"], ["Pressure", s.pressure, v => v.toFixed(2)]]
+    .filter(r => r[1] != null);
+  $("nowKv").innerHTML = rows.map(([k, v, f]) => `<span>${k}</span><b>${f(v)}</b>`).join("");
   const mins = Math.round((Date.now() - new Date(s.time)) / 60000);
-  $("nowAge").textContent = `Station reading from ${mins} min ago. Readings refresh about every 15 min.`;
+  $("nowAge").textContent = s.source ? `Reading from ${s.source}, ${mins} min ago.` : `Station reading from ${mins} min ago. Readings refresh about every 15 min.`;
+}
+
+// Another location: "now" comes from the nearest NWS station with a recent reading (usually an airport).
+async function nearestObs(ptP) {
+  const pt = await ptP, list = (await get(pt.observationStations + "?limit=3")).features;
+  const obs = await Promise.all(list.map(f => get(`https://api.weather.gov/stations/${f.properties.stationIdentifier}/observations/latest`)
+    .then(o => ({o: o.properties, name: f.properties.name})).catch(() => null)));
+  const good = obs.filter(x => x && x.o.temperature.value != null);
+  const pick = good.find(x => Date.now() - Date.parse(x.o.timestamp) < 2 * 3600000) || good[0];
+  if (!pick) throw new Error("no reading");
+  const o = pick.o, F = c => c == null ? null : c * 9 / 5 + 32, mph = k => k == null ? null : k / 1.609;
+  $("nowTitle").textContent = "Now at " + pick.name;
+  return {source: pick.name, time: o.timestamp, temp: F(o.temperature.value), dew: F(o.dewpoint.value),
+    feels: F(nz(o.windChill.value, nz(o.heatIndex.value, o.temperature.value))), humidity: o.relativeHumidity.value,
+    wind: mph(o.windSpeed.value), gust: mph(o.windGust.value), winddir: o.windDirection.value,
+    pressure: o.barometricPressure.value == null ? null : o.barometricPressure.value / 3386.39};
+}
+
+// Another location: hide the parts that only exist because of the backyard station's history.
+function stationOnly() {
+  const low = $("lowYard"); low.hidden = true; if (low.previousElementSibling) low.previousElementSibling.hidden = true;
+  const sec = $("score").closest && $("score").closest("section"); if (sec) sec.hidden = true;
+  $("hourlyNote").textContent = "Model forecast. Rain chance is the NWS figure.";
+  $("tenNote").textContent = "Model forecast (Open-Meteo best match). Shaded bands are night; the white line is now; the dashed line is 32°F. Tap a chart to read values.";
+  $("sources").textContent = "Sources: National Weather Service, Open-Meteo, Iowa Environmental Mesonet radar.";
+  $("hourlyTitle").textContent = $("hourlyTitle").textContent.replace("at the station", "here");
+}
+
+function saveLoc(v) { try { localStorage.setItem("wx:loc", JSON.stringify(v)); } catch (e) {} }
+
+// Location picker: US ZIP code or city. ZIPs are looked up with Zippopotam.us, cities with Open-Meteo's place search,
+// then the NWS confirms the spot is covered and gives its time zone.
+const STATES = {Alabama:"AL",Alaska:"AK",Arizona:"AZ",Arkansas:"AR",California:"CA",Colorado:"CO",Connecticut:"CT",Delaware:"DE","District of Columbia":"DC",Florida:"FL",Georgia:"GA",Hawaii:"HI",Idaho:"ID",Illinois:"IL",Indiana:"IN",Iowa:"IA",Kansas:"KS",Kentucky:"KY",Louisiana:"LA",Maine:"ME",Maryland:"MD",Massachusetts:"MA",Michigan:"MI",Minnesota:"MN",Mississippi:"MS",Missouri:"MO",Montana:"MT",Nebraska:"NE",Nevada:"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC","North Dakota":"ND",Ohio:"OH",Oklahoma:"OK",Oregon:"OR",Pennsylvania:"PA","Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD",Tennessee:"TN",Texas:"TX",Utah:"UT",Vermont:"VT",Virginia:"VA",Washington:"WA","West Virginia":"WV",Wisconsin:"WI",Wyoming:"WY"};
+function picker(first) {
+  if (document.getElementById("locPick")) return;
+  const box = document.createElement("div"); box.id = "locPick";
+  box.innerHTML = `<style>
+#locPick{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}
+#locPick .box{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:20px 22px;width:min(460px,100%);display:flex;flex-direction:column;gap:10px;font:16px/1.4 var(--body)}
+#locPick h2{font:600 22px var(--display);margin:0;color:var(--fg);text-transform:none;letter-spacing:0}
+#locPick input{font:inherit;padding:9px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+#locPick button{font:inherit;text-align:left;padding:9px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--accent);cursor:pointer;margin:0}
+#locPick button:focus,#locPick input:focus{outline:2px solid var(--accent)}
+#locPick .msg{color:var(--muted);font-size:14px;min-height:1.2em}
+#locRes{display:flex;flex-direction:column;gap:6px}</style>
+<div class="box"><h2>Where do you want the weather for?</h2>
+<input id="locQ" type="text" placeholder="US ZIP code, or city and state" autocomplete="postal-code">
+<button id="locGo" type="button">Search</button>
+<div class="msg" id="locMsg"></div><div id="locRes"></div>
+<button id="locStation" type="button">Caledonia, MI (the backyard weather station)</button>
+${first ? "" : '<button id="locCancel" type="button">Cancel</button>'}</div>`;
+  document.body.appendChild(box);
+  const q = document.getElementById("locQ"), res = document.getElementById("locRes"), msg = t => document.getElementById("locMsg").textContent = t;
+  const choose = async p => {
+    msg("Checking the forecast for " + p.name + "...");
+    try {
+      const pt = (await get(`https://api.weather.gov/points/${p.lat.toFixed(4)},${p.lon.toFixed(4)}`)).properties;
+      saveLoc({name: p.name, lat: p.lat, lon: p.lon, tz: pt.timeZone}); location.reload();
+    } catch (e) { msg("The National Weather Service doesn't cover that spot. US locations only."); }
+  };
+  const search = async () => {
+    const text = q.value.trim(); if (!text) return;
+    msg("Searching..."); res.innerHTML = "";
+    let places = [];
+    try {
+      if (/^\d{5}$/.test(text)) {
+        const z = await get(`https://api.zippopotam.us/us/${text}`);
+        places = z.places.slice(0, 5).map(p => ({name: `${p["place name"]}, ${p["state abbreviation"]}`, lat: +p.latitude, lon: +p.longitude}));
+      } else {
+        const [city, st] = text.split(",").map(s => s.trim());
+        const g = await get("https://geocoding-api.open-meteo.com/v1/search?" + new URLSearchParams({name: city, count: 10, countryCode: "US"}));
+        places = (g.results || []).filter(r => !st || [r.admin1, STATES[r.admin1]].some(x => x && x.toLowerCase() === st.toLowerCase()))
+          .slice(0, 5).map(r => ({name: `${r.name}, ${STATES[r.admin1] || r.admin1}`, lat: r.latitude, lon: r.longitude}));
+      }
+    } catch (e) {}
+    if (!places.length) return msg("Nothing found. Try a 5-digit ZIP code, or a city and state like \"Traverse City, MI\".");
+    msg(places.length > 1 ? "Pick one:" : "");
+    places.forEach(p => { const b = document.createElement("button"); b.type = "button"; b.textContent = p.name; b.onclick = () => choose(p); res.appendChild(b); });
+    res.firstChild.focus();
+  };
+  document.getElementById("locGo").onclick = search;
+  q.addEventListener("keydown", e => { if (e.key === "Enter") search(); });
+  document.getElementById("locStation").onclick = () => { saveLoc({station: true}); location.reload(); };
+  if (!first) document.getElementById("locCancel").onclick = () => box.remove();
+  q.focus();
 }
 
 function showAlerts(list) {
@@ -105,7 +208,7 @@ function showHourly(nws, m) {
     row("", c => clock(c.t).replace(":00", "")) +
     row("Temp", c => { const y = yard("temp", c.t, h.temperature_2m[c.i]); return y == null ? "--" : Math.round(y) + "°"; }, "yard") +
     row("Dew pt", c => { const y = yard("dew", c.t, h.dew_point_2m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
-    row("Wind (station)", c => { const y = yard("wind", c.t, h.wind_speed_10m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
+    row(STATION ? "Wind (station)" : "Wind", c => { const y = yard("wind", c.t, h.wind_speed_10m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
     row("Gusts (model)", c => Math.round(h.wind_gusts_10m[c.i])) +
     row("Cloud cover", c => h.cloud_cover[c.i] + "%") +
     row("Rain chance (NWS)", c => (c.n ? nz(c.n.probabilityOfPrecipitation.value, 0) : h.precipitation_probability[c.i]) + "%");
@@ -237,7 +340,7 @@ function showTenDay(m) {
   mk("cTemp", base({}), [
     {label: "Temperature °F", data: h.temperature_2m, borderColor: c("--bad")},
     {label: "Feels like", data: h.apparent_temperature, borderColor: c("--feels")},
-    {label: "Dew point (station)", data: dew, borderColor: c("--yard")},
+    {label: STATION ? "Dew point (station)" : "Dew point", data: dew, borderColor: c("--yard")},
     {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [4, 4], borderWidth: 1}]);
 
   mk("cSky", base({min: 0, max: 100}, {p: {position: "right", grid: {display: false}, ticks: {color: c("--muted"), font: {size: TVF}, callback: v => v.toFixed(2)}}}), [
@@ -256,28 +359,28 @@ function showTenDay(m) {
     {label: "Wind mph (open field)", data: h.wind_speed_10m, borderColor: c("--accent"),
       pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 3, pointBackgroundColor: c("--accent"),
       pointRotation: x => (h.wind_direction_10m[x.dataIndex] + 180) % 360},
-    {label: "Gusts", data: h.wind_gusts_10m, borderColor: c("--warn"), borderWidth: 1},
-    {label: "Station wind", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderDash: [3, 3]}]);
+    {label: "Gusts", data: h.wind_gusts_10m, borderColor: c("--warn"), borderWidth: 1}].concat(STATION ?
+    [{label: "Station wind", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderDash: [3, 3]}] : []));
 }
 
 let frames = [], fi = 0, timer = null;
 function radar() {
-  const map = L.map("radar", {zoomControl: false, attributionControl: true}).setView([LAT, LON], 8);
+  const map = MAP = L.map("radar", {zoomControl: false, attributionControl: true}).setView([LAT, LON], 8);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution: "© OpenStreetMap contributors", maxZoom: 12, className: "basemap"}).addTo(map);
   L.circleMarker([LAT, LON], {radius: 5, color: "#0b7a5a", fillOpacity: 1}).addTo(map);
   const offs = ["m55m", "m50m", "m45m", "m40m", "m35m", "m30m", "m25m", "m20m", "m15m", "m10m", "m05m", ""];
   frames = offs.map((o, i) => ({mins: 55 - i * 5, layer: L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913${o ? "-" + o : ""}/{z}/{x}/{y}.png`, {opacity: 0, attribution: "IEM NEXRAD"}).addTo(map)}));
   step(); play();
-  warnOutlines(map).catch(() => note("warning outlines didn't load"));
   if (window.RADAR_ROTATE) rotateRadar(map);
   $("radarBtn").onclick = () => timer ? (clearInterval(timer), timer = null, $("radarBtn").textContent = "Play") : play();
 }
-// Active NWS warnings and watches in Michigan, drawn on the radar. Storm warnings come with their own outline;
+// Active NWS warnings and watches in the location's state, drawn on the radar. Storm warnings come with their own outline;
 // winter and flood warnings cover whole counties, so those county shapes are fetched one by one (each fetched once).
 const WARN_COLORS = [[/Tornado/, "#ff2d2d"], [/Severe Thunderstorm/, "#ffa500"], [/Flood/, "#2ee86b"], [/Blizzard|Ice Storm/, "#d24dff"],
   [/Winter Storm|Lake Effect Snow|Winter Weather/, "#ff69b4"], [/Wind|Gale|Storm Warning/, "#d2b48c"], [/Freeze|Frost|Wind Chill|Extreme Cold/, "#4fc3ff"], [/./, "#ffd400"]];
-async function warnOutlines(map) {
-  const list = (await get("https://api.weather.gov/alerts/active?area=MI&status=actual")).features
+async function warnOutlines(map, state) {
+  if (!map) return;
+  const list = (await get(`https://api.weather.gov/alerts/active?area=${state}&status=actual`)).features
     .filter(f => /Warning|Watch/.test(f.properties.event));
   const zones = {}, seen = {};
   for (const f of list) {
@@ -305,7 +408,7 @@ function rotateRadar(map) {
     return !!s && mins(now) > mins(s[0]) + 60 && mins(now) < mins(s[1]) - 60;
   };
   setInterval(() => {
-    const views = [["Radar, local", 8], ["Radar, Great Lakes", 6]].concat(daylight() ? [["Satellite clouds", 6, true]] : []);
+    const views = [["Radar, local", 8], [STATION ? "Radar, Great Lakes" : "Radar, region", 6]].concat(daylight() ? [["Satellite clouds", 6, true]] : []);
     v = (v + 1) % views.length;
     const [title, zoom, isSat] = views[v];
     map.setView([LAT, LON], zoom, {animate: false});

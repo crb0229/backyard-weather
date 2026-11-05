@@ -78,7 +78,8 @@ def ambient_device():
         DEVICE = get_json("https://api.ambientweather.net/v1/devices", ambient_keys())[0]
     dev = DEVICE
     coords = (dev.get("info", {}).get("coords") or {}).get("coords") or {}
-    return dev, coords.get("lat", FALLBACK_LAT), coords.get("lon", FALLBACK_LON)
+    # Rounded to 2 decimals (about half a mile) before anything is published: the repo and page are public.
+    return dev, round(coords.get("lat", FALLBACK_LAT), 2), round(coords.get("lon", FALLBACK_LON), 2)
 
 
 def location():
