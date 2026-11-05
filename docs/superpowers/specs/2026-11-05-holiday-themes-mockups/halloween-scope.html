@@ -1,0 +1,111 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Griffy&family=Barlow+Semi+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+.tv{aspect-ratio:16/9;width:100%;border-radius:10px;overflow:hidden;padding:2.2%;display:flex;flex-direction:column;gap:2.5%;font-family:"IBM Plex Sans",sans-serif;position:relative}
+.tv .hdr{display:flex;align-items:center;gap:2%;height:12%}
+.tv .ttl{font:600 1.5em "Barlow Semi Condensed",sans-serif}
+.tv .hol{font-family:"Griffy",cursive;font-size:1.6em;letter-spacing:.02em}
+.tv .clock{margin-left:auto;font:500 1.1em "IBM Plex Mono",monospace}
+.tv .tog{font-size:.62em;border-radius:5px;padding:2px 7px;white-space:nowrap}
+.tv .sum{font:600 .95em "Barlow Semi Condensed",sans-serif}
+.tv .grid{flex:1;display:grid;grid-template-columns:1.05fr 1fr;gap:2.5%}
+.tv .pnl{border-radius:7px;padding:3%;font-size:.6em}
+.tv .right{display:grid;grid-template-rows:1fr 1fr;gap:5%}
+.tv .big{font:500 3.4em "IBM Plex Mono",monospace;line-height:1}
+.tv .radar{height:86%;border-radius:5px;background:radial-gradient(ellipse at 55% 65%,rgba(70,170,90,.55) 0 12%,transparent 22%),radial-gradient(ellipse at 30% 30%,rgba(70,170,90,.35) 0 6%,transparent 12%),#141414}
+.tv .tiles{display:grid;grid-template-columns:repeat(7,1fr);gap:3%;margin-top:4%}
+.tv .tiles div{border-radius:4px;height:2.6em}
+.pumpkin{height:100%;aspect-ratio:1;flex:none}
+/* A: normal screen, holiday only in the title area */
+.a{background:#0f151b;color:#e6ecf1}
+.a .pnl{background:#18212a;border:1px solid #2b3742}
+.a .tiles div{border:1px solid #2b3742}
+.a .hol{color:#f08a24}
+.a .tog{border:1px solid #2b3742;color:#93a1ae}
+/* B: whole screen in soft, warm Halloween colors */
+.b{background:linear-gradient(160deg,#1d1418,#171217 60%,#1a1410);color:#f1e6dc}
+.b .pnl{background:#251b1f;border:1px solid #4a3326;box-shadow:inset 0 0 40px rgba(224,140,60,.06)}
+.b .tiles div{border:1px solid #4a3326}
+.b .hol{color:#e8a35a;text-shadow:0 0 12px rgba(232,140,60,.35)}
+.b .tog{border:1px solid #4a3326;color:#c9a88a}
+.b .lbl{color:#c9a88a}
+.b .big{color:#f3d3b0}
+.b .radar{box-shadow:0 0 0 1px #4a3326}
+.lbl{text-transform:uppercase;letter-spacing:.1em;font-weight:500;color:#93a1ae;font-size:.85em}
+</style>
+
+<h2>Halloween: title area only, or the whole screen?</h2>
+<p class="subtitle">Same TV layout, two scopes. The pumpkin replaces the falling ovals, and the title uses a Halloween font. The "Theme: On" button top right is the remote toggle in both.</p>
+
+<div class="cards">
+  <div class="card" data-choice="title-only" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="tv a">
+        <div class="hdr">
+          <span class="ttl">Local Weather</span>
+          <svg class="pumpkin" viewBox="0 0 100 100"><use href="#pk"/></svg>
+          <span class="hol">Happy Halloween</span>
+          <span class="clock">7:42 PM</span>
+          <span class="tog">Theme: On</span>
+        </div>
+        <div class="sum">Dry tonight. Low 38°.</div>
+        <div class="grid">
+          <div class="pnl"><div class="lbl">Radar, local</div><div class="radar"></div></div>
+          <div class="right">
+            <div class="pnl"><div class="lbl">Now at the station</div><div class="big">52°</div></div>
+            <div class="pnl"><div class="lbl">7-day outlook</div><div class="tiles"><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Title area only</h3>
+      <p>The screen keeps its normal colors. The holiday shows as the picture and the themed title next to "Local Weather".</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="whole-screen" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="tv b">
+        <div class="hdr">
+          <span class="ttl">Local Weather</span>
+          <svg class="pumpkin" viewBox="0 0 100 100"><use href="#pk"/></svg>
+          <span class="hol">Happy Halloween</span>
+          <span class="clock">7:42 PM</span>
+          <span class="tog">Theme: On</span>
+        </div>
+        <div class="sum">Dry tonight. Low 38°.</div>
+        <div class="grid">
+          <div class="pnl"><div class="lbl">Radar, local</div><div class="radar"></div></div>
+          <div class="right">
+            <div class="pnl"><div class="lbl">Now at the station</div><div class="big">52°</div></div>
+            <div class="pnl"><div class="lbl">7-day outlook</div><div class="tiles"><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Whole screen, soft and warm</h3>
+      <p>Same picture and title, plus a muted plum-and-amber background, warm panel borders and a faint glow. No bright orange or neon.</p>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <radialGradient id="pkG" cx="45%" cy="40%" r="65%"><stop offset="0" stop-color="#f6a54a"/><stop offset=".6" stop-color="#e07a26"/><stop offset="1" stop-color="#a94b14"/></radialGradient>
+    <linearGradient id="stG" x1="0" x2="1"><stop offset="0" stop-color="#6b5a2e"/><stop offset="1" stop-color="#3f3418"/></linearGradient>
+    <g id="pk">
+      <path d="M50 22c-3-7-1-13 4-16 2 3 1 7-1 10 4-1 7 1 8 4-4 1-8 1-11 2z" fill="url(#stG)"/>
+      <path d="M55 20c6-6 15-6 19-1-6 2-11 3-19 1z" fill="#4f6b2e" opacity=".9"/>
+      <ellipse cx="50" cy="60" rx="20" ry="30" fill="url(#pkG)" transform="rotate(-1 50 60)"/>
+      <ellipse cx="33" cy="61" rx="17" ry="28" fill="url(#pkG)"/>
+      <ellipse cx="67" cy="61" rx="17" ry="28" fill="url(#pkG)"/>
+      <ellipse cx="50" cy="61" rx="13" ry="30" fill="url(#pkG)"/>
+      <g fill="none" stroke="#a94b14" stroke-width="1.2" opacity=".55">
+        <path d="M42 33c-5 9-5 46 0 56"/><path d="M58 33c5 9 5 46 0 56"/>
+        <path d="M27 36c-9 10-9 40 0 50"/><path d="M73 36c9 10 9 40 0 50"/>
+      </g>
+      <ellipse cx="40" cy="45" rx="5" ry="9" fill="#fff" opacity=".12"/>
+    </g>
+  </defs>
+</svg>

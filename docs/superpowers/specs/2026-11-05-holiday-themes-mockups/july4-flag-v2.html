@@ -1,0 +1,85 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow+Semi+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+.july{background:radial-gradient(ellipse at 30% 0%,rgba(111,143,196,.12),transparent 60%),linear-gradient(180deg,#111827,#151b2b);color:#ece4d4;border-radius:12px;overflow:hidden;max-width:980px}
+.strip{height:230px;display:flex;align-items:center;gap:26px;padding:0 32px}
+.lw{font:600 30px "Barlow Semi Condensed",sans-serif;opacity:.9;white-space:nowrap}
+.strip svg{height:200px;width:260px;flex:none}
+.t{font-family:"Alfa Slab One",serif;font-size:44px;line-height:1.05;color:#ece4d4;letter-spacing:.02em}
+.t b{color:#cf6a63;font-weight:400}
+.panels{display:flex;gap:10px;padding:0 32px 22px}
+.panels div{flex:1;height:44px;border-radius:7px;background:#182235;border:1px solid #3d3a55}
+.big{margin-top:18px;background:#111827;border-radius:12px;max-width:980px;display:flex;align-items:center;justify-content:center;padding:10px 0}
+.big svg{width:620px;height:420px}
+.note{font:15px/1.5 "IBM Plex Sans",sans-serif;color:#444;max-width:980px;margin-top:12px}
+#replay{font:500 14px "IBM Plex Sans",sans-serif;padding:6px 14px;border-radius:6px;border:1px solid #bbb;background:#fff;cursor:pointer;margin-top:8px}
+</style>
+
+<h2>Fourth of July flag, take 2</h2>
+<p class="subtitle">Stripes and all 50 stars bend with the cloth, the folds are shaded, and the flag uses true proportions. It ripples for about 6 seconds as the startup animation, then settles into a gentle resting wave and holds still.</p>
+
+<div class="july">
+  <div class="strip">
+    <span class="lw">Local Weather</span>
+    <svg viewBox="8 2 92 66" class="flag"></svg>
+    <span class="t">Happy <b>Fourth</b><br>of July</span>
+  </div>
+  <div class="panels"><div></div><div></div></div>
+</div>
+<button id="replay" type="button">Replay startup animation</button>
+
+<div class="big"><svg viewBox="8 2 92 66" class="flag"></svg></div>
+<p class="note">Large view of the same drawing so you can check the detail. On the TV it appears at the size in the strip above.</p>
+
+<script>
+(function () {
+  const X0 = 20, Y0 = 12, W = 74, H = W / 1.9, CW = W * 0.4, CH = H * 7 / 13, N = 48;
+  const RED = "#b9524e", WHITE = "#ece4d4", BLUE = "#2c4370";
+  const U = x => (x - X0) / W;
+  let amp = 1, ph = 0;
+  // Cloth displacement: grows away from the pole, travels outward like a ripple
+  const dy = x => { const u = U(x); return amp * 3.2 * u * Math.sin(2 * Math.PI * (u * 1.35 - ph)); };
+  const dx = x => { const u = U(x); return -amp * 1.4 * u * (1 - Math.cos(2 * Math.PI * (u * 1.35 - ph))) / 2; };
+  const slope = x => { const u = U(x); return Math.cos(2 * Math.PI * (u * 1.35 - ph)) * (0.25 + u); };
+  const P = (x, y) => `${(x + dx(x)).toFixed(2)},${(y + dy(x)).toFixed(2)}`;
+  function band(xa, xb, ya, yb) {
+    const top = [], bot = [];
+    for (let i = 0; i <= N; i++) { const x = xa + (xb - xa) * i / N; top.push(P(x, ya)); bot.unshift(P(x, yb)); }
+    return top.concat(bot).join(" ");
+  }
+  function star(cx, cy, r) {
+    let s = "";
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.4 : r; s += `${(cx + rr * Math.cos(a)).toFixed(2)},${(cy + rr * Math.sin(a)).toFixed(2)} `; }
+    return s;
+  }
+  function draw() {
+    let g = `<defs><linearGradient id="pl" x1="0" x2="1"><stop offset="0" stop-color="#7d7a74"/><stop offset=".45" stop-color="#e6dfd2"/><stop offset="1" stop-color="#6e6b66"/></linearGradient>
+      <radialGradient id="fin" cx="35%" cy="35%"><stop offset="0" stop-color="#f6e2a8"/><stop offset="1" stop-color="#a87f33"/></radialGradient></defs>`;
+    g += `<rect x="${X0 - 3.4}" y="${Y0 - 4}" width="2.4" height="${68 - Y0 + 4}" rx="1.2" fill="url(#pl)"/><circle cx="${X0 - 2.2}" cy="${Y0 - 5.2}" r="2.4" fill="url(#fin)"/>`;
+    for (let i = 0; i < 13; i++) g += `<polygon points="${band(X0, X0 + W, Y0 + i * H / 13, Y0 + (i + 1) * H / 13 + .05)}" fill="${i % 2 ? WHITE : RED}"/>`;
+    g += `<polygon points="${band(X0, X0 + CW, Y0, Y0 + CH)}" fill="${BLUE}"/>`;
+    for (let j = 0; j < 9; j++) {
+      const n = j % 2 ? 5 : 6, y = Y0 + (j + 1) * CH / 10;
+      for (let k = 0; k < n; k++) { const x = X0 + (j % 2 ? k * 2 + 2 : k * 2 + 1) * CW / 12; g += `<polygon points="${star(x + dx(x), y + dy(x), 1.05)}" fill="${WHITE}"/>`; }
+    }
+    // Fold shading: thin slices, light where the cloth faces up, dark where it turns away
+    for (let i = 0; i < N; i++) {
+      const xa = X0 + W * i / N, xb = X0 + W * (i + 1) / N, s = slope((xa + xb) / 2);
+      g += `<polygon points="${band(xa, xb + .05, Y0, Y0 + H)}" fill="${s > 0 ? "#fff" : "#000"}" fill-opacity="${Math.min(.3, Math.abs(s) * .22).toFixed(3)}"/>`;
+    }
+    g += `<polygon points="${band(X0, X0 + W, Y0, Y0 + H)}" fill="none" stroke="#000" stroke-opacity=".25" stroke-width=".3"/>`;
+    document.querySelectorAll("svg.flag").forEach(s => s.innerHTML = g);
+  }
+  let start = 0;
+  function frame(t) {
+    if (!start) start = t;
+    const e = (t - start) / 1000, k = Math.min(1, e / 6);
+    ph = e * 0.55;                       // ripple travels outward
+    amp = 1 - 0.45 * k * k;              // calms down over 6 s to a resting wave
+    draw();
+    if (k < 1) requestAnimationFrame(frame);
+  }
+  function play() { start = 0; requestAnimationFrame(frame); }
+  document.getElementById("replay").onclick = play;
+  play();
+})();
+</script>
