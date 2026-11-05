@@ -87,9 +87,10 @@ body.alerting .panel{border:2px solid var(--warn)}
 #issSoon{font:600 1.2rem var(--display);color:var(--yard);margin-left:1vw}
 .iss{width:100%;font-size:1.25rem}
 .iss td{text-align:left;padding:.8vh .6vw}
-.issPic{position:relative;height:23vh;flex:none;border-radius:8px;overflow:hidden}
-.issPic img{width:100%;height:100%;object-fit:cover;object-position:center 22%;display:block}
-.issPic span{position:absolute;right:8px;bottom:5px;font-size:.7rem;color:#fff;opacity:.75}
+.issPic{position:relative;height:23vh;flex:none;overflow:hidden}
+.issPic img{width:100%;height:100%;object-fit:contain;display:block;mix-blend-mode:screen;   /* whole station; black space blends into the panel, Earth fades at the sides */
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(to right,transparent,#000 18%,#000 82%,transparent)}
+.issPic span{position:absolute;right:8px;bottom:5px;font-size:.7rem;color:var(--muted)}
 .iss .when{font-family:var(--num);white-space:nowrap}
 #placeBtn{font-size:1.15rem;vertical-align:.25em}
 #radar.leaflet-container{background:var(--bg)}   /* dark, not grey, while map pieces load */
