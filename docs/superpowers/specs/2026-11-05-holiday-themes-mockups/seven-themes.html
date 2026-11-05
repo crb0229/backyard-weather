@@ -1,0 +1,201 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&family=Griffy&family=Kaushan+Script&family=Alfa+Slab+One&family=Sniglet:wght@800&family=Great+Vibes&family=Orbitron:wght@600&family=Barlow+Semi+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:18px}
+.th{border-radius:12px;overflow:hidden;border:1px solid #ddd;background:#fff}
+.strip{position:relative;height:150px;display:flex;align-items:center;gap:14px;padding:0 20px;overflow:hidden}
+.strip .lw{font:600 22px "Barlow Semi Condensed",sans-serif;opacity:.9}
+.strip svg{height:96px;width:96px;flex:none;position:relative;z-index:1}
+.strip .t{font-size:34px;line-height:1.05;position:relative;z-index:1}
+.panels{display:flex;gap:8px;padding:0 20px 16px;margin-top:-6px}
+.panels div{flex:1;height:34px;border-radius:6px}
+.info{padding:12px 16px 14px;font:14px/1.45 "IBM Plex Sans",sans-serif;color:#333}
+.info h3{margin:0 0 4px;font-size:17px}
+.sw{display:flex;gap:6px;margin:6px 0}
+.sw span{width:26px;height:16px;border-radius:3px;border:1px solid rgba(0,0,0,.15)}
+.anim{color:#555}
+/* palettes */
+.xmas{background:radial-gradient(ellipse at 20% 0%,rgba(230,194,122,.10),transparent 60%),#121a17;color:#efe7da}
+.xmas .t{font-family:"Mountains of Christmas",cursive;font-weight:700;color:#e6c27a}
+.xmas .panels div{background:#1a2420;border:1px solid #4a2c2c}
+.hall{background:linear-gradient(160deg,#1d1418,#171217 60%,#1a1410);color:#f1e6dc}
+.hall .t{font-family:"Griffy",cursive;color:#e8a35a;text-shadow:0 0 12px rgba(232,140,60,.35)}
+.hall .panels div{background:#251b1f;border:1px solid #4a3326}
+.thx{background:radial-gradient(ellipse at 80% 100%,rgba(200,120,50,.12),transparent 60%),#1c1612;color:#f0e2d0}
+.thx .t{font-family:"Kaushan Script",cursive;color:#e0a35a}
+.thx .panels div{background:#261d17;border:1px solid #5a3d24}
+.july{background:linear-gradient(180deg,#111827,#151b2b);color:#ece4d4}
+.july .t{font-family:"Alfa Slab One",serif;font-size:28px;color:#ece4d4;letter-spacing:.02em}
+.july .t b{color:#cf6a63;font-weight:400}
+.july .panels div{background:#182235;border:1px solid #3d3a55}
+.east{background:linear-gradient(180deg,#1c1924,#1a1820);color:#f2e9f2}
+.east .t{font-family:"Sniglet",sans-serif;font-weight:800;color:#e9c6dc}
+.east .panels div{background:#232030;border:1px solid #4a4060}
+.ny{background:radial-gradient(ellipse at 50% 0%,rgba(232,200,106,.10),transparent 65%),#121216;color:#f1ead8}
+.ny .t{font-family:"Great Vibes",cursive;font-size:44px;color:#e8c86a}
+.ny .panels div{background:#1b1b22;border:1px solid #4a4030}
+.may{background:#0a0d14;color:#d9dde6}
+.may .t{font-family:"Orbitron",sans-serif;font-weight:600;font-size:26px;color:#d9dde6;letter-spacing:.08em}
+.may .panels div{background:#121620;border:1px solid #2a3140}
+.stars{position:absolute;inset:0;background-image:radial-gradient(1px 1px at 12% 20%,#fff,transparent),radial-gradient(1px 1px at 35% 70%,#cfd8ff,transparent),radial-gradient(1.5px 1.5px at 62% 30%,#fff,transparent),radial-gradient(1px 1px at 80% 80%,#fff,transparent),radial-gradient(1px 1px at 90% 15%,#dfe6ff,transparent),radial-gradient(1px 1px at 50% 50%,#fff,transparent),radial-gradient(1px 1px at 22% 88%,#fff,transparent),radial-gradient(1px 1px at 72% 55%,#fff,transparent);opacity:.7}
+</style>
+
+<h2>The seven main themes: picture, title font and colors</h2>
+<p class="subtitle">Each strip is the TV's title area in that holiday's soft colors; the two bars under it show the panel color and border. The startup animation is described below each one (it plays once when the app opens, then stops). Click any you like as-is; tell me in the terminal what to change on the others.</p>
+
+<div class="themes" data-multiselect>
+
+<div class="th" data-choice="christmas" onclick="toggleSelect(this)">
+  <div class="xmas"><div class="strip"><span class="lw">Local Weather</span>
+    <svg viewBox="0 0 100 100"><use href="#gift"/></svg><span class="t">Merry Christmas</span></div>
+    <div class="panels"><div></div><div></div></div></div>
+  <div class="info"><h3>Christmas</h3>
+    <div class="sw"><span style="background:#121a17"></span><span style="background:#1a2420"></span><span style="background:#4a2c2c"></span><span style="background:#c0504d"></span><span style="background:#e6c27a"></span></div>
+    Deep pine background, cranberry borders, warm gold title. Wrapped present.<br>
+    <span class="anim"><b>Startup:</b> real six-point snowflakes drift down slowly for about 8 seconds, then fade.</span></div>
+</div>
+
+<div class="th" data-choice="halloween" onclick="toggleSelect(this)">
+  <div class="hall"><div class="strip"><span class="lw">Local Weather</span>
+    <svg viewBox="0 0 100 100"><use href="#pk"/></svg><span class="t">Happy Halloween</span></div>
+    <div class="panels"><div></div><div></div></div></div>
+  <div class="info"><h3>Halloween</h3>
+    <div class="sw"><span style="background:#1d1418"></span><span style="background:#251b1f"></span><span style="background:#4a3326"></span><span style="background:#e8a35a"></span></div>
+    Plum and amber, as in option B. Pumpkin.<br>
+    <span class="anim"><b>Startup:</b> the pumpkin glows like a candle while a few bats flutter across once.</span></div>
+</div>
+
+<div class="th" data-choice="thanksgiving" onclick="toggleSelect(this)">
+  <div class="thx"><div class="strip"><span class="lw">Local Weather</span>
+    <svg viewBox="0 0 100 100"><use href="#leaves"/></svg><span class="t">Happy Thanksgiving</span></div>
+    <div class="panels"><div></div><div></div></div></div>
+  <div class="info"><h3>Thanksgiving</h3>
+    <div class="sw"><span style="background:#1c1612"></span><span style="background:#261d17"></span><span style="background:#5a3d24"></span><span style="background:#b5552a"></span><span style="background:#e0a35a"></span></div>
+    Warm brown, rust and amber. Cluster of real maple-leaf shapes.<br>
+    <span class="anim"><b>Startup:</b> maple leaves tumble down across the screen once and settle out of view.</span></div>
+</div>
+
+<div class="th" data-choice="july4" onclick="toggleSelect(this)">
+  <div class="july"><div class="strip"><span class="lw">Local Weather</span>
+    <svg viewBox="0 0 100 100"><use href="#burst"/></svg><span class="t">Happy <b>Fourth</b> of July</span></div>
+    <div class="panels"><div></div><div></div></div></div>
+  <div class="info"><h3>Fourth of July</h3>
+    <div class="sw"><span style="background:#111827"></span><span style="background:#182235"></span><span style="background:#3d3a55"></span><span style="background:#cf6a63"></span><span style="background:#ece4d4"></span><span style="background:#6f8fc4"></span></div>
+    Night navy, muted red, cream and soft blue. Firework burst with a star.<br>
+    <span class="anim"><b>Startup:</b> three or four fireworks rise and burst with trailing sparks, then fade.</span></div>
+</div>
+
+<div class="th" data-choice="easter" onclick="toggleSelect(this)">
+  <div class="east"><div class="strip"><span class="lw">Local Weather</span>
+    <svg viewBox="0 0 100 100"><use href="#bunny"/></svg><span class="t">Happy Easter</span></div>
+    <div class="panels"><div></div><div></div></div></div>
+  <div class="info"><h3>Easter</h3>
+    <div class="sw"><span style="background:#1c1924"></span><span style="background:#232030"></span><span style="background:#4a4060"></span><span style="background:#e9c6dc"></span><span style="background:#bfe0cf"></span></div>
+    Dusk lavender with pastel pink. Bunny with a painted egg.<br>
+    <span class="anim"><b>Startup:</b> the bunny hops in from the left and sits beside the title.</span></div>
+</div>
+
+<div class="th" data-choice="newyear" onclick="toggleSelect(this)">
+  <div class="ny"><div class="strip"><span class="lw">Local Weather</span>
+    <svg viewBox="0 0 100 100"><use href="#flutes"/></svg><span class="t">Happy New Year</span></div>
+    <div class="panels"><div></div><div></div></div></div>
+  <div class="info"><h3>New Year's</h3>
+    <div class="sw"><span style="background:#121216"></span><span style="background:#1b1b22"></span><span style="background:#4a4030"></span><span style="background:#e8c86a"></span></div>
+    Charcoal with soft gold. Two champagne glasses.<br>
+    <span class="anim"><b>Startup:</b> a short shower of gold confetti and rising bubbles.</span></div>
+</div>
+
+<div class="th" data-choice="may4" onclick="toggleSelect(this)">
+  <div class="may"><div class="strip"><div class="stars"></div><span class="lw" style="position:relative;z-index:1">Local Weather</span>
+    <svg viewBox="0 0 100 100"><use href="#ds"/></svg><span class="t">May the 4th<br>be with you</span></div>
+    <div class="panels"><div></div><div></div></div></div>
+  <div class="info"><h3>May the 4th</h3>
+    <div class="sw"><span style="background:#0a0d14"></span><span style="background:#121620"></span><span style="background:#2a3140"></span><span style="background:#d9dde6"></span></div>
+    Deep space with faint stars, cool steel grey. Our own Death Star-style drawing, which also replaces the moon on the Sun and moon slide.<br>
+    <span class="anim"><b>Startup:</b> a jump-to-lightspeed star streak, then the screen settles.</span></div>
+</div>
+
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+  <radialGradient id="pkG" cx="45%" cy="40%" r="65%"><stop offset="0" stop-color="#f6a54a"/><stop offset=".6" stop-color="#e07a26"/><stop offset="1" stop-color="#a94b14"/></radialGradient>
+  <linearGradient id="stG" x1="0" x2="1"><stop offset="0" stop-color="#6b5a2e"/><stop offset="1" stop-color="#3f3418"/></linearGradient>
+  <g id="pk">
+    <path d="M50 22c-3-7-1-13 4-16 2 3 1 7-1 10 4-1 7 1 8 4-4 1-8 1-11 2z" fill="url(#stG)"/>
+    <path d="M55 20c6-6 15-6 19-1-6 2-11 3-19 1z" fill="#4f6b2e" opacity=".9"/>
+    <ellipse cx="50" cy="60" rx="20" ry="30" fill="url(#pkG)"/>
+    <ellipse cx="33" cy="61" rx="17" ry="28" fill="url(#pkG)"/>
+    <ellipse cx="67" cy="61" rx="17" ry="28" fill="url(#pkG)"/>
+    <ellipse cx="50" cy="61" rx="13" ry="30" fill="url(#pkG)"/>
+    <g fill="none" stroke="#a94b14" stroke-width="1.2" opacity=".55"><path d="M42 33c-5 9-5 46 0 56"/><path d="M58 33c5 9 5 46 0 56"/><path d="M27 36c-9 10-9 40 0 50"/><path d="M73 36c9 10 9 40 0 50"/></g>
+    <ellipse cx="40" cy="45" rx="5" ry="9" fill="#fff" opacity=".12"/>
+  </g>
+
+  <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c85a55"/><stop offset="1" stop-color="#8a2e2f"/></linearGradient>
+  <linearGradient id="gold" x1="0" x2="1"><stop offset="0" stop-color="#f1d58f"/><stop offset=".5" stop-color="#d9ae5c"/><stop offset="1" stop-color="#f0d48c"/></linearGradient>
+  <g id="gift">
+    <rect x="18" y="48" width="64" height="44" rx="3" fill="url(#gR)"/>
+    <rect x="14" y="38" width="72" height="14" rx="3" fill="#b4473f"/>
+    <rect x="14" y="49" width="72" height="3" fill="#000" opacity=".18"/>
+    <rect x="45" y="38" width="10" height="54" fill="url(#gold)"/>
+    <path d="M50 38c-6-15-25-17-24-6 1 8 15 8 24 6z" fill="none" stroke="url(#gold)" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M50 38c6-15 25-17 24-6-1 8-15 8-24 6z" fill="none" stroke="url(#gold)" stroke-width="5" stroke-linejoin="round"/>
+    <circle cx="50" cy="38" r="4.5" fill="#d9ae5c"/>
+    <rect x="22" y="56" width="4" height="30" rx="2" fill="#fff" opacity=".08"/>
+  </g>
+
+  <g id="leaf"><path d="M50 4 56 24 68 17 64 36 83 31 74 46 93 52 72 60 77 73 58 66 53 83 51 96 49 96 47 83 42 66 23 73 28 60 7 52 26 46 17 31 36 36 32 17 44 24Z"/><path d="M50 30V95" stroke="#000" stroke-opacity=".25" stroke-width="1.5" fill="none"/></g>
+  <g id="leaves">
+    <use href="#leaf" fill="#b5552a" transform="translate(4 20) scale(.6) rotate(-25 50 50)"/>
+    <use href="#leaf" fill="#d98a3a" transform="translate(38 28) scale(.6) rotate(20 50 50)"/>
+    <use href="#leaf" fill="#e3b04f" transform="translate(20 2) scale(.62)"/>
+  </g>
+
+  <g id="burst">
+    <g stroke-linecap="round" stroke-width="3">
+      <path d="M50 50 50 12" stroke="#ece4d4"/><path d="M50 50 77 23" stroke="#cf6a63"/><path d="M50 50 88 50" stroke="#6f8fc4"/><path d="M50 50 77 77" stroke="#ece4d4"/>
+      <path d="M50 50 50 88" stroke="#cf6a63"/><path d="M50 50 23 77" stroke="#6f8fc4"/><path d="M50 50 12 50" stroke="#ece4d4"/><path d="M50 50 23 23" stroke="#cf6a63"/>
+    </g>
+    <g fill="#ece4d4"><circle cx="50" cy="8" r="2.5"/><circle cx="80" cy="20" r="2.5" fill="#cf6a63"/><circle cx="92" cy="50" r="2.5" fill="#6f8fc4"/><circle cx="80" cy="80" r="2.5"/><circle cx="50" cy="92" r="2.5" fill="#cf6a63"/><circle cx="20" cy="80" r="2.5" fill="#6f8fc4"/><circle cx="8" cy="50" r="2.5"/><circle cx="20" cy="20" r="2.5" fill="#cf6a63"/></g>
+    <path d="M50 38 53.5 46.5 62 47 55.5 52.5 57.5 61 50 56.5 42.5 61 44.5 52.5 38 47 46.5 46.5Z" fill="#ece4d4"/>
+  </g>
+
+  <g id="bunny">
+    <ellipse cx="58" cy="70" rx="23" ry="18" fill="#efe6f0"/>
+    <circle cx="38" cy="55" r="13" fill="#efe6f0"/>
+    <ellipse cx="31" cy="30" rx="5" ry="16" fill="#efe6f0" transform="rotate(-14 31 30)"/>
+    <ellipse cx="42" cy="29" rx="5" ry="16" fill="#efe6f0" transform="rotate(8 42 29)"/>
+    <ellipse cx="31" cy="30" rx="2" ry="11" fill="#e9b7cf" transform="rotate(-14 31 30)"/>
+    <ellipse cx="42" cy="29" rx="2" ry="11" fill="#e9b7cf" transform="rotate(8 42 29)"/>
+    <circle cx="80" cy="66" r="6" fill="#fff"/>
+    <circle cx="33" cy="53" r="1.8" fill="#3a3040"/>
+    <circle cx="27" cy="58" r="1.6" fill="#e9b7cf"/>
+    <ellipse cx="45" cy="86" rx="9" ry="3.5" fill="#efe6f0"/>
+    <g transform="translate(70 70)"><ellipse cx="10" cy="12" rx="9" ry="12" fill="#bfe0cf"/><path d="M1 10q4.5-3 9 0t9 0" stroke="#e9c6dc" stroke-width="2.4" fill="none"/><path d="M2 16q4-3 8 0t8 0" stroke="#efe6f0" stroke-width="2" fill="none"/></g>
+  </g>
+
+  <linearGradient id="fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3dc9a" stop-opacity=".25"/><stop offset=".35" stop-color="#e8c86a" stop-opacity=".9"/><stop offset="1" stop-color="#c9a24a"/></linearGradient>
+  <g id="flute"><path d="M0 0h16l-2 34q-6 7-12 0z" fill="url(#fl)" stroke="#f1e2b4" stroke-width="1"/><path d="M8 38v22" stroke="#f1e2b4" stroke-width="2"/><ellipse cx="8" cy="61" rx="8" ry="2.5" fill="#f1e2b4"/></g>
+  <g id="flutes">
+    <use href="#flute" transform="translate(26 18) rotate(-14 8 30)"/>
+    <use href="#flute" transform="translate(56 18) rotate(14 8 30)"/>
+    <g fill="#f3dc9a"><circle cx="49" cy="14" r="1.6"/><circle cx="54" cy="8" r="1.2"/><circle cx="46" cy="6" r="1"/><circle cx="34" cy="38" r="1"/><circle cx="66" cy="42" r="1"/></g>
+    <path d="M50 18l1.5 3.5 3.5 1.5-3.5 1.5-1.5 3.5-1.5-3.5-3.5-1.5 3.5-1.5z" fill="#fff" opacity=".8"/>
+  </g>
+
+  <radialGradient id="dsG" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#d4d8df"/><stop offset=".65" stop-color="#8a9099"/><stop offset="1" stop-color="#4b5058"/></radialGradient>
+  <radialGradient id="dish" cx="60%" cy="60%" r="70%"><stop offset="0" stop-color="#9aa0a8"/><stop offset="1" stop-color="#5a6068"/></radialGradient>
+  <clipPath id="dsClip"><circle cx="50" cy="50" r="40"/></clipPath>
+  <g id="ds">
+    <circle cx="50" cy="50" r="40" fill="url(#dsG)"/>
+    <g clip-path="url(#dsClip)" stroke="#5a6068" stroke-width=".7" opacity=".55" fill="none">
+      <path d="M10 30h80M10 40h80M10 64h80M10 74h80M10 84h80"/>
+      <path d="M22 30v10M58 40v12M70 64v10M30 64v10M44 74v10M80 30v10"/>
+    </g>
+    <path d="M10 52q40 7 80 0" stroke="#3a3f47" stroke-width="2.4" fill="none" clip-path="url(#dsClip)"/>
+    <circle cx="35" cy="33" r="10.5" fill="url(#dish)" stroke="#4b5058" stroke-width="1"/>
+    <circle cx="35" cy="33" r="2.6" fill="#3a3f47"/>
+    <circle cx="50" cy="50" r="40" fill="none" stroke="#000" stroke-opacity=".25"/>
+  </g>
+</defs>
+</svg>
