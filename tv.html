@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Local Weather TV</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 /* Layout: one 16:9 screen, no scrolling. Left: radar, always on. Right top: now, always on. Right bottom: detail that rotates. Sizes scale with screen height (vh). */
@@ -94,7 +94,7 @@ header button:focus-visible{outline:2px solid var(--accent)}
 <script>window.CHART_FONT = 15; window.HOURS = 10; window.RADAR_ROTATE = true;</script>
 </head>
 <body>
-<header><span><h1 style="display:inline">Local Weather</h1> <button id="placeBtn" type="button"></button><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span> <button id="musicBtn" type="button">Music: off</button> <button id="nextBtn" type="button" hidden>Next station</button></span></header>
+<header><span><h1 style="display:inline">Local Weather</h1> <button id="placeBtn" type="button"></button><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
 <div id="alerts"></div>
 
 <div class="grid">
@@ -152,9 +152,9 @@ header button:focus-visible{outline:2px solid var(--accent)}
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" integrity="sha384-dug+JxfBvklEQdJ4AYuBBAIScUz0bVN73xpy273gcAwHjb3qI0fXmuYNaNfdyYJG" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js" integrity="sha384-e6V1JVpc+kVNTxT0gEOla7yL4c92Romsw7itPoipfzHbEjzUwPhTv6oeVDMHHzqT" crossorigin="anonymous"></script>
 <script>document.write('<script src="app.js?t=' + Date.now() + '"><\/script>');   // always the newest app.js, so an update never mixes old and new files</script>
 <script>
 // Rotate the detail panel. The 10-day outlook is the home view: 20 seconds, the others 10.
@@ -340,40 +340,6 @@ async function findIssPasses() {
     document.getElementById("issSoon").textContent = !soon ? "" : mins > 0 ? `Space Station in ${mins} min` : "Space Station overhead now";
   }
   tick(); setInterval(tick, 15000);
-})();
-
-// Background music: free internet radio streams of piano and coffee-shop jazz.
-// Browsers won't start sound by themselves, so the first start needs one click.
-// After that the page remembers it was on and tries to resume on reload.
-(function () {
-  const stations = [
-    ["Jazz Piano", "https://jzr-piano.ice.infomaniak.ch/jzr-piano.mp3"],
-    ["Piano Jazz Lounge", "https://0nlineradio.radioho.st/lounge-piano-jazz-bar"],
-    ["Coffee Bar Lounge", "https://stream.epic-lounge.com/coffee-bar-lounge"],
-    ["Radio Art Jazz Piano", "https://live.radioart.com/fJazz_piano.mp3"],
-    ["Chillout Piano", "https://stream.epic-piano.com/chillout-piano"]
-  ];
-  const btn = document.getElementById("musicBtn"), nextBtn = document.getElementById("nextBtn");
-  const audio = new Audio();
-  audio.volume = 0.5;
-  let i = 0, on = false;
-  try { i = (+localStorage.getItem("wx:station") || 0) % stations.length; on = localStorage.getItem("wx:music") === "on"; } catch (e) {}
-  function save() { try { localStorage.setItem("wx:station", i); localStorage.setItem("wx:music", on ? "on" : "off"); } catch (e) {} }
-  function label(text) { btn.textContent = text; nextBtn.hidden = !on; }
-  function start() {
-    audio.src = stations[i][1];
-    audio.play().then(() => label("Music: " + stations[i][0]))
-      .catch(() => label("Music: click to start"));
-  }
-  btn.addEventListener("click", () => {
-    if (on && !audio.paused) { on = false; audio.pause(); audio.removeAttribute("src"); label("Music: off"); }
-    else { on = true; start(); }
-    save();
-  });
-  nextBtn.addEventListener("click", () => { i = (i + 1) % stations.length; save(); start(); });
-  // A dropped stream moves on to the next station after a few seconds.
-  audio.addEventListener("error", () => { if (on) setTimeout(() => { i = (i + 1) % stations.length; start(); }, 3000); });
-  if (on) start();
 })();
 </script>
 </body>

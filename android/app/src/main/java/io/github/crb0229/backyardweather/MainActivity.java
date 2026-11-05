@@ -24,10 +24,14 @@ public class MainActivity extends Activity {
         web = new WebView(this);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);                  // remembers music on/off and station
-        s.setMediaPlaybackRequiresUserGesture(false);  // music can resume on its own
+        s.setDomStorageEnabled(true);                  // remembers the chosen location
         web.setBackgroundColor(0xFF0F151B);
         web.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                return !"crb0229.github.io".equals(r.getUrl().getHost());   // stay on our own page; ignore links to other sites
+            }
+
             @Override
             public void onReceivedError(WebView v, WebResourceRequest r, WebResourceError e) {
                 if (r.isForMainFrame()) v.postDelayed(() -> v.loadUrl(PAGE), 30000);   // no internet yet: try again in 30 s
@@ -48,6 +52,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        finish();   // leaving the app (Home button) closes it, so the music stops; reopening starts fresh
+        finish();   // leaving the app (Home button) closes it; reopening starts fresh
     }
 }

@@ -15,16 +15,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0, pinned to an exact version
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3   # v4.9.1
         with:
           distribution: temurin
           java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1   # v4.4.4
         with:
           gradle-version: "8.9"
       - name: Build
-        run: gradle -p android assembleRelease
+        env:
+          TV_KEYSTORE_B64: ${{ secrets.TV_KEYSTORE_B64 }}
+          TV_KEYSTORE_PASS: ${{ secrets.TV_KEYSTORE_PASS }}
+        run: |
+          # The signing key lives only in GitHub secrets, never in the repo
+          if [ -z "$TV_KEYSTORE_B64" ] || [ -z "$TV_KEYSTORE_PASS" ]; then
+            echo "::error::Add the TV_KEYSTORE_B64 and TV_KEYSTORE_PASS secrets (Settings > Secrets and variables > Actions)"; exit 1
+          fi
+          echo "$TV_KEYSTORE_B64" | base64 -d > android/app/tv.keystore
+          gradle -p android assembleRelease
+          rm -f android/app/tv.keystore
       - name: Save tv.apk
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk tv.apk
@@ -32,6 +42,7 @@ jobs:
           git config user.email "weather-bot@users.noreply.github.com"
           git add tv.apk
           git diff --cached --quiet && exit 0
+          git status --porcelain | grep -q keystore && { echo "::error::keystore would be committed"; exit 1; }
           git commit -m "tv app build"
           for i in 1 2 3; do git pull --rebase origin main && git push && exit 0; sleep 10; done
           exit 1

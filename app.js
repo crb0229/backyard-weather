@@ -9,6 +9,7 @@ const $ = id => document.getElementById(id) || document.createElement("div");
 const TVF = window.CHART_FONT || 10, HOURS = window.HOURS || 24;   // the TV page sets bigger text and fewer hours
 const nz = (a, b) => a == null ? b : a;   // older TV browsers can't read the newer shorthand for this
 const get = u => fetch(u, {cache: "no-store"}).then(r => { if (!r.ok) throw new Error(r.status + " " + u); return r.json(); });
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));   // outside text is shown as text, never run as page code
 const f0 = v => v == null || v === "" ? "--" : Math.round(v);
 const fmt = new Intl.DateTimeFormat("en-CA", {timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23"});
 // "YYYY-MM-DDTHH" in Michigan time, used to line up NWS and model hours
@@ -30,7 +31,7 @@ function yard(v, t, val) {          // t = "YYYY-MM-DDTHH", local time
 }
 
 async function main() {
-  if (!LOC) {   // first visit on this device: ask where. Devices already using the TV page (music set) stay on the station.
+  if (!LOC) {   // first visit on this device: ask where. Devices that used the TV page before the picker existed stay on the station.
     let old = !STORE;
     try { old = old || localStorage.getItem("wx:music") != null; } catch (e) {}
     if (!old) return picker(true);
@@ -148,7 +149,12 @@ ${first ? "" : '<button id="locCancel" type="button">Cancel</button>'}</div>`;
         const z = await get(`https://api.zippopotam.us/us/${text}`);
         places = z.places.slice(0, 5).map(p => ({name: `${p["place name"]}, ${p["state abbreviation"]}`, lat: +p.latitude, lon: +p.longitude}));
       } else {
-        const [city, st] = text.split(",").map(s => s.trim());
+        // "Grand Rapids, MI", "Grand Rapids MI" and "Grand Rapids Michigan" all work
+        let [city, st] = text.split(",").map(s => s.trim());
+        if (!st) for (const name of [...Object.keys(STATES), ...Object.values(STATES)].sort((x, y) => y.length - x.length)) {
+          const re = new RegExp("\\s+" + name + "$", "i");
+          if (re.test(text)) { st = name; city = text.replace(re, ""); break; }
+        }
         const g = await get("https://geocoding-api.open-meteo.com/v1/search?" + new URLSearchParams({name: city, count: 10, countryCode: "US"}));
         places = (g.results || []).filter(r => !st || [r.admin1, STATES[r.admin1]].some(x => x && x.toLowerCase() === st.toLowerCase()))
           .slice(0, 5).map(r => ({name: `${r.name}, ${STATES[r.admin1] || r.admin1}`, lat: r.latitude, lon: r.longitude}));
@@ -167,7 +173,7 @@ ${first ? "" : '<button id="locCancel" type="button">Cancel</button>'}</div>`;
 }
 
 function showAlerts(list) {
-  $("alerts").innerHTML = list.map(a => `<details class="alert"><summary>${a.properties.event}: until ${new Date(a.properties.ends || a.properties.expires).toLocaleString("en-US", {timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit"})}</summary><p></p></details>`).join("");
+  $("alerts").innerHTML = list.map(a => `<details class="alert"><summary>${esc(a.properties.event)}: until ${new Date(a.properties.ends || a.properties.expires).toLocaleString("en-US", {timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit"})}</summary><p></p></details>`).join("");
   [...$("alerts").querySelectorAll("p")].forEach((p, i) => p.textContent = list[i].properties.headline + "\n\n" + list[i].properties.description);
 }
 
@@ -272,7 +278,7 @@ function showSunMoon(m) {
 }
 
 function showDays(periods) {
-  $("days").innerHTML = periods.slice(0, 14).map(p => `<div class="day"><span>${p.name}</span><b class="num">${p.temperature}°</b><span>${p.shortForecast}${p.probabilityOfPrecipitation.value ? ", " + p.probabilityOfPrecipitation.value + "% rain/snow" : ""}</span></div>`).join("");
+  $("days").innerHTML = periods.slice(0, 14).map(p => `<div class="day"><span>${esc(p.name)}</span><b class="num">${esc(p.temperature)}°</b><span>${esc(p.shortForecast)}${p.probabilityOfPrecipitation.value ? ", " + esc(p.probabilityOfPrecipitation.value) + "% rain/snow" : ""}</span></div>`).join("");
 }
 
 function showScore() {
@@ -395,7 +401,7 @@ async function warnOutlines(map, state) {
     shapes.forEach(s => L.geoJSON(s, {style, interactive: false}).addTo(map));
     if (shapes.length) seen[ev] = color;
   }
-  $("warnKey").innerHTML = Object.entries(seen).map(([ev, c]) => `<span style="color:${c}">&#9632;</span> ${ev}`).join(" &nbsp; ");
+  $("warnKey").innerHTML = Object.entries(seen).map(([ev, c]) => `<span style="color:${c}">&#9632;</span> ${esc(ev)}`).join(" &nbsp; ");
 }
 
 // TV only: the radar box cycles local radar, Great Lakes radar, then (in daylight only) satellite clouds, 20 seconds each.

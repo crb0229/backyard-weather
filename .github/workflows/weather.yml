@@ -20,21 +20,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0, pinned to an exact version
         with:
           ref: main   # always start from the newest saved data, not the copy from when the run was queued
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065   # v5.6.0
         with:
           python-version: "3.12"
       - name: Collect
         env:
           AMBIENT_API_KEY: ${{ secrets.AMBIENT_API_KEY }}
           AMBIENT_APP_KEY: ${{ secrets.AMBIENT_APP_KEY }}
+          JOB: ${{ github.event.inputs.job }}         # passed as data, never pasted into the command itself
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
-          JOB="${{ github.event.inputs.job }}"
           if [ -z "$JOB" ]; then
-            if [ "${{ github.event.schedule }}" = "40 9 * * *" ]; then JOB=daily; else JOB=latest; fi
+            if [ "$SCHEDULE" = "40 9 * * *" ]; then JOB=daily; else JOB=latest; fi
           fi
+          case "$JOB" in latest|daily|backfill|rebuild) ;; *) echo "Unknown job: $JOB"; exit 1;; esac
           python wx.py "$JOB"
       - name: Save
         if: always()
@@ -42,4 +44,8 @@ jobs:
           git config user.name "weather-bot"
           git config user.email "weather-bot@users.noreply.github.com"
           git add data
-          git diff --cached --quiet || (git commit -m "weather data" && git pull --rebase origin main && git push)
+          git diff --cached --quiet && exit 0
+          git commit -m "weather data"
+          # Another update can land at the same moment; pull it in and try again
+          for i in 1 2 3 4; do git pull --rebase origin main && git push && exit 0; sleep $((i * 10)); done
+          exit 1
