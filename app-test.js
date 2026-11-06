@@ -493,12 +493,23 @@ function rotateRadar(map) {
     box.style.transition = "opacity .6s ease-in";
     box.style.opacity = 0;
     setTimeout(() => {
-      const views = [["Radar, local", 8], [STATION ? "Radar, Great Lakes" : "Radar, region", 6]].concat(daylight() ? [["Satellite clouds", 6, true]] : []);
+      // TEST: close-up = the Grand Rapids radar alone (finer detail, newer scans), latest scan only, for the station location
+      const views = [["Radar, local", 8]].concat(STATION ? [["Radar, close-up", 10, "site"]] : [], [[STATION ? "Radar, Great Lakes" : "Radar, region", 6]], daylight() ? [["Satellite clouds", 6, "sat"]] : []);
       v = (v + 1) % views.length;
-      const [title, zoom, isSat] = views[v];
+      const [title, zoom, kind] = views[v], isSat = kind === "sat";
       if (sat) { map.removeLayer(sat); sat = null; }
       let ready;
-      if (isSat) {
+      if (kind === "site") {
+        clearInterval(timer); timer = null;
+        frames.forEach(f => f.layer.setOpacity(0));
+        sat = L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/ridge::GRR-N0B-0/{z}/{x}/{y}.png?t=${Math.floor(Date.now() / 120000)}`,
+          {opacity: 0.8, attribution: "IEM NEXRAD KGRR"});
+        ready = Promise.all([loaded(sat), loaded(BASE)]);
+        sat.addTo(map);
+        $("radarTime").textContent = "Latest scan";
+        $("radarProg").style.width = "100%";
+        $("dbzKey").style.visibility = "";
+      } else if (isSat) {
         clearInterval(timer); timer = null;
         frames.forEach(f => f.layer.setOpacity(0));
         sat = L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch02/{z}/{x}/{y}.png?t=${Date.now()}`,
