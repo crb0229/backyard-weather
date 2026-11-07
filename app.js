@@ -216,8 +216,9 @@ function showHourly(nws, m) {
     row("Temp", c => { const y = yard("temp", c.t, h.temperature_2m[c.i]); return y == null ? "--" : Math.round(y) + "°"; }, "yard") +
     row("Dew pt", c => { const y = yard("dew", c.t, h.dew_point_2m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
     row(STATION ? "Wind (station)" : "Wind", c => { const y = yard("wind", c.t, h.wind_speed_10m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
-    row("Gusts (model)", c => Math.round(h.wind_gusts_10m[c.i])) +
-    row("Cloud cover", c => h.cloud_cover[c.i] + "%") +
+    (window.CHART_FONT ? "" :   // TV: fewer rows, so the rest read from across the room
+      row("Gusts (model)", c => Math.round(h.wind_gusts_10m[c.i])) +
+      row("Cloud cover", c => h.cloud_cover[c.i] + "%")) +
     row("Rain chance (NWS)", c => (c.n ? nz(c.n.probabilityOfPrecipitation.value, 0) : h.precipitation_probability[c.i]) + "%");
 }
 
@@ -371,10 +372,12 @@ function showTenDay(m) {
     {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [4, 4], borderWidth: 1}]);
 
   if (window.CHART_FONT) {
-    // TV: two simple charts that read from across the room
+    // TV: two simple charts that read from across the room. Cloud cover is averaged over 12 hours, so it shows
+    // the cloudy and clear stretches instead of hour-to-hour noise; the rain chance line sits on top, thick and bright.
+    const smooth = (v, k) => v.map((_, i) => { const w = v.slice(Math.max(0, i - k), i + k + 1).filter(x => x != null); return w.length ? w.reduce((a, b) => a + b, 0) / w.length : null; });
     mk("cSky", base({min: 0, max: 100, ticks: {color: c("--muted"), font: {size: TVF}, stepSize: 50, callback: v => v + "%"}}), [
-      {label: "Chance of rain", data: h.precipitation_probability, borderColor: c("--accent"), backgroundColor: c("--accent-fill"), fill: true, borderWidth: 3, order: 1},
-      {label: "Cloud cover", data: h.cloud_cover, borderColor: c("--cloud-fill"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 0, order: 2}]);
+      {label: "Chance of rain", data: h.precipitation_probability, borderColor: c("--accent"), backgroundColor: c("--accent-fill"), fill: true, borderWidth: 4, order: 1},
+      {label: "Cloud cover", data: smooth(h.cloud_cover, 6), borderColor: c("--cloud"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 1.5, tension: .4, order: 2}]);
     // Rain and snow per day as labeled bars
     const labels = d.time.map(t => new Date(t + "T12:00").toLocaleDateString("en-US", {weekday: "short"}));
     const amounts = {id: "amounts", afterDatasetsDraw(ch) {
@@ -404,6 +407,15 @@ function showTenDay(m) {
       {label: "Running total in", data: h.precipitation.map(p => run += p || 0), borderColor: c("--fg"), borderWidth: 1}]);
   }
 
+  if (window.CHART_FONT) {
+    // TV: the station's own wind is the bold line; the forecast for open ground and its gusts stay in the background
+    mk("cWind", base({min: 0}), (STATION ?
+      [{label: "Wind at the station", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderWidth: 4, order: 1}] : []).concat([
+      {label: STATION ? "Wind in the open" : "Wind", data: h.wind_speed_10m, borderColor: c("--accent"), borderWidth: STATION ? 1.5 : 3, order: 2,
+        pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 4, pointBackgroundColor: c("--accent"),
+        pointRotation: x => (h.wind_direction_10m[x.dataIndex] + 180) % 360},
+      {label: "Gusts", data: h.wind_gusts_10m, borderColor: c("--warn"), borderWidth: 1, borderDash: [4, 4], order: 3}]));
+  } else
   mk("cWind", base({min: 0}), [
     {label: "Wind mph (open field)", data: h.wind_speed_10m, borderColor: c("--accent"),
       pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 3, pointBackgroundColor: c("--accent"),

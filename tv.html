@@ -51,6 +51,7 @@ body.stale #nowAge{display:block;color:var(--warn)}   /* shown only when the rea
 .rotor{flex:1;position:relative;min-height:0}
 .slide{position:absolute;inset:1.2vh 1.2vw;display:flex;flex-direction:column;gap:1vh;opacity:0;transition:opacity .8s}
 .slide.on{opacity:1}
+.slide[hidden]{display:none}
 .slidehead{display:flex;justify-content:space-between;align-items:center}
 .dots span{display:inline-block;width:.8vh;height:.8vh;border-radius:50%;background:var(--line);margin-left:.5vh}
 .dots span.on{background:var(--accent)}
@@ -64,20 +65,22 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .tenday div{border:1px solid var(--line);border-radius:6px;padding:.5vh 2px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .tenday svg{width:3.4vh;height:3.4vh}
 .hi{color:var(--bad)} .lo{color:var(--cold)}
-.eve{display:flex;gap:.6vw}
-.eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:1.1rem}
+.eve{display:flex;gap:.6vw;flex:1;min-height:0;max-height:16vh}   /* the cards take the room left under the hourly table */
+.eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:1.25rem;display:flex;flex-direction:column;justify-content:center}
+#hourlyKey{margin:0}
 .eve .c0{border-color:var(--yard)}
 #radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.75)}
-.sunmoon{flex:1;display:grid;grid-template-columns:auto 1fr;gap:3vw;align-items:center}
-.sunmoon .kv{grid-template-columns:auto auto;font-size:1.8rem;gap:1.2vh 1.5vw;justify-content:start}
+.sunmoon{flex:1;display:grid;grid-template-columns:auto auto;justify-content:space-between;gap:2vw;align-items:center;align-content:center}
+.sunmoon .kv{grid-template-columns:auto auto;font-size:1.6rem;gap:1.2vh 1.5vw;justify-content:start}
 .sunmoon .kv b{white-space:nowrap}
-.sunmoon .small{font-size:1.05rem}
-.moon{display:flex;align-items:center;gap:1.5vw}
-.moon .moonPhoto{width:22vh;height:22vh;flex:none;mix-blend-mode:screen}   /* black sky in the photo blends into the panel */
-.moon svg{width:20vh;height:20vh;flex:none}
-.moon .callout{font-size:1.8rem}
-#moonNext{white-space:pre-line}
+.sunmoon .small{font-size:1.15rem}
+.moon{display:flex;align-items:center;gap:1.2vw}
+.moon .moonPhoto{width:15vh;height:15vh;flex:none;mix-blend-mode:screen}   /* black sky in the photo blends into the panel */
+.moon svg{width:14vh;height:14vh;flex:none}
+.moon .callout{font-size:1.6rem;white-space:nowrap}
+#moonNext{white-space:pre;line-height:1.5;font-size:1.05rem}   /* one line per date, never wrapped mid-date */
 #moonLit{font-size:1.35rem}
+#moonCredit{position:absolute;right:0;bottom:0;margin:0}   /* the photo credit sits quietly in the corner */
 .clock{font:600 1.6rem var(--display)}
 .clock b{font:600 1.6rem var(--num);color:var(--accent);margin-left:.8vw}
 /* Themes: daylight (a lifted slate, not white), late-night dim, freezing and alert accents, holiday label */
@@ -90,8 +93,9 @@ body.alerting .panel{border:2px solid var(--warn)}
 #holiday{font:600 1.1rem var(--display);margin-left:1vw}
 #issSoon{font:600 1.2rem var(--display);color:var(--yard);margin-left:1vw}
 .iss{width:100%;font-size:1.05rem}
-.iss td{text-align:left;padding:1vh .6vw}
-.issPic{position:relative;height:13vh;flex:none;overflow:hidden}
+.iss td{text-align:left;padding:.6vh .6vw}
+#issNote{margin:0}
+.issPic{position:relative;height:11vh;flex:none;overflow:hidden}
 .issPic img{width:100%;height:100%;object-fit:contain;display:block;mix-blend-mode:screen;   /* whole station; black space blends into the panel, Earth fades at the sides */
   -webkit-mask-image:linear-gradient(to right,transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(to right,transparent,#000 18%,#000 82%,transparent)}
 .issPic span{position:absolute;right:8px;bottom:5px;font-size:.7rem;color:var(--muted)}
@@ -175,6 +179,7 @@ window.HOURS = 9; window.RADAR_ROTATE = true;</script>
       <div class="slide">
         <div class="slidehead"><h2 id="hourlyTitle">Next 9 hours at the station</h2><span class="dots"></span></div>
         <table id="hourly"></table>
+        <p class="small" id="hourlyKey"><span class="yard">Green</span>: adjusted to how the forecast has missed at the station</p>
         <h2>Evening sky, 7 PM to midnight</h2>
         <div class="eve" id="evenings"></div>
       </div>
@@ -190,14 +195,14 @@ window.HOURS = 9; window.RADAR_ROTATE = true;</script>
           <div class="moon"><svg viewBox="0 0 100 100" id="moonPic"></svg><div><div class="callout" id="moonName">--</div><div class="num" id="moonLit"></div><p class="small" id="moonNext"></p><p class="small" id="moonCredit" style="font-size:.7rem"></p></div></div>
         </div>
       </div>
-      <div class="slide">
+      <div class="slide" id="issSlide" hidden>   <!-- shown once there are passes to list -->
         <div class="slidehead"><h2>Space Station sightings from home</h2><span class="dots"></span></div>
         <div class="issPic"><img src="https://images-assets.nasa.gov/image/iss056e201248/iss056e201248~medium.jpg" alt="" onerror="this.parentNode.remove()"><span>Photo: NASA</span></div>
         <table class="iss" id="issTable"><tr><td>Working out passes...</td></tr></table>
         <p class="small" id="issNote"></p>
       </div>
       <div class="slide">
-        <div class="slidehead"><h2>Wind, 10 days</h2><span class="dots"></span></div>
+        <div class="slidehead"><h2>Wind, mph, 10 days</h2><span class="dots"></span></div>
         <div class="chart"><canvas id="cWind"></canvas></div>
       </div>
     </section>
@@ -210,16 +215,19 @@ window.HOURS = 9; window.RADAR_ROTATE = true;</script>
 <script>document.write('<script src="app.js?t=' + Date.now() + '"><\/script>');   // always the newest app.js, so an update never mixes old and new files</script>
 <script>
 // Rotate the detail panel. The 10-day outlook is the home view: 20 seconds, the others 10.
+// Hidden pages (the Space Station page with nothing to show) are left out of the rotation and the dots.
 (function () {
-  const slides = document.querySelectorAll("#rotor .slide");
+  const slides = Array.from(document.querySelectorAll("#rotor .slide"));
   let n = 0;
-  function show() {
-    slides.forEach((s, i) => {
-      s.classList.toggle("on", i === n);
-      s.querySelector(".dots").innerHTML = Array.from(slides, (_, j) => `<span class="${j === n ? "on" : ""}"></span>`).join("");
-    });
+  function show(list) {
+    slides.forEach(s => s.classList.toggle("on", s === list[n]));
+    list.forEach(s => { s.querySelector(".dots").innerHTML = list.map((_, j) => `<span class="${j === n ? "on" : ""}"></span>`).join(""); });
   }
-  function next() { show(); setTimeout(() => { n = (n + 1) % slides.length; next(); }, n === 0 ? 20000 : 10000); }
+  function next() {
+    const list = slides.filter(s => !s.hidden);
+    n = n % list.length; show(list);
+    setTimeout(() => { n = (n + 1) % slides.filter(s => !s.hidden).length; next(); }, n === 0 ? 20000 : 10000);
+  }
   next();
 })();
 
@@ -238,6 +246,7 @@ window.onData = function (latest, model, alerts) {
   body.classList.toggle("stale", mins > 30);
   if (mins > 30) document.getElementById("nowAge").textContent = `Reading ${mins < 120 ? mins + " min" : Math.floor(mins / 60) + " h " + mins % 60 + " min"} old`;
   windMeters(latest);
+  document.getElementById("hourlyKey").hidden = !STATION;   // another location has no station adjustment to explain
   setTimeout(findIssPasses, 500);   // after the charts, so the page draws first
 };
 
@@ -418,10 +427,11 @@ async function findIssPasses() {
     const dir = az => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(az / 45) % 8];
     const height = el => el >= 60 ? "Nearly overhead" : el >= 30 ? "Halfway up the sky" : "Low in the sky";
     const when = t => new Date(t).toLocaleString("en-US", {timeZone: TZ, weekday: "short", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit"}).replace(",", "");
-    table.innerHTML = passes.length ? passes.slice(0, 6).map(r => `<tr><td class="when">${when(r.start)}</td><td>${dir(r.startAz)} to ${dir(r.endAz)}</td><td>${height(r.max)}</td><td class="num">${Math.max(1, Math.round((r.end - r.start) / 60000))} min</td></tr>`).join("")
+    document.getElementById("issSlide").hidden = !passes.length;   // no visible passes: leave the page out of the rotation
+    table.innerHTML = passes.length ? passes.slice(0, 5).map(r => `<tr><td class="when">${when(r.start)}</td><td>${dir(r.startAz)} to ${dir(r.endAz)}</td><td>${height(r.max)}</td><td class="num">${Math.max(1, Math.round((r.end - r.start) / 60000))} min</td></tr>`).join("")
       : "<tr><td>No visible passes in the next 10 days. The station is up there, but it's either in daylight or in Earth's shadow when it crosses.</td></tr>";
     note.textContent = "Times are when it first appears. Looks like a bright, steady star moving across the sky, no blinking.";
-  } catch (e) { table.innerHTML = "<tr><td>Couldn't work out passes right now.</td></tr>"; }
+  } catch (e) { table.innerHTML = "<tr><td>Couldn't work out passes right now.</td></tr>"; document.getElementById("issSlide").hidden = true; }
 }
 
 // Date and time in the header, Michigan time, refreshed every 15 seconds.
