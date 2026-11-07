@@ -476,8 +476,11 @@ function rotateRadar(map) {
         ready = Promise.all([loaded(sat), loaded(BASE)]);
         sat.addTo(map);
         $("radarTime").textContent = "Latest";
+        $("radarProg").style.width = "100%";
+        $("dbzKey").style.visibility = "hidden";   // the rain color key means nothing on the satellite view
       } else {
         ready = Promise.all([loaded(frames[frames.length - 1].layer), loaded(BASE)]);   // map background too, so no grey flash
+        $("dbzKey").style.visibility = "";
         if (!timer) play();
       }
       map.setView([LAT, LON], zoom, {animate: false});
@@ -491,6 +494,7 @@ function play() { if (matchMedia("(prefers-reduced-motion: reduce)").matches) { 
 function step() {
   frames.forEach((f, i) => f.layer.setOpacity(i === fi ? 0.7 : 0));
   const f = frames[fi]; $("radarTime").textContent = f.mins ? `${f.mins} min ago` : "Latest";
+  $("radarProg").style.width = ((fi + 1) / frames.length * 100) + "%";   // timeline bar under the map fills as the loop plays
   fi = (fi + 1) % frames.length;
 }
 

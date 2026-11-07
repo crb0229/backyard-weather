@@ -31,7 +31,11 @@ h2{font:600 1.15rem var(--display);text-transform:uppercase;letter-spacing:.1em;
 .left{display:flex;flex-direction:column;position:relative}
 #holidayFx{position:absolute;pointer-events:none;z-index:700}
 #radar{flex:1;border-radius:8px;overflow:hidden}
-.radarbar{display:flex;justify-content:space-between;margin-top:.6vh}
+.radarbar{display:flex;justify-content:space-between;align-items:center;margin-top:.6vh}
+.radarprog{height:.5vh;background:var(--line);border-radius:2px;margin-top:.5vh;overflow:hidden}   /* loop timeline: fills as the frames play, full at the latest */
+.radarprog i{display:block;height:100%;width:0;background:var(--accent)}
+.dbz{display:inline-flex;align-items:center;gap:.5vw}   /* radar color key, light rain to heavy storms */
+.dbz i{display:inline-block;width:12vw;height:1vh;border-radius:2px;background:linear-gradient(to right,#04e9e7,#019ff4,#02fd02,#01c501,#fdf802,#fd9500,#fd0000,#bc0000,#f800fd)}
 .right{display:flex;flex-direction:column;gap:1.4vh;min-height:0}
 .top{display:grid;grid-template-columns:auto 1fr;gap:1vh 2vw;align-items:center}
 .big{font:600 5rem/1 var(--num)}
@@ -67,7 +71,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .eve{display:flex;gap:.6vw}
 .eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:1.1rem}
 .eve .c0{border-color:var(--yard)}
-#radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.75)}
+#radar .leaflet-tile-pane .basemap{filter:invert(1) hue-rotate(180deg) grayscale(.7) brightness(.75) contrast(1.15)}   /* dark map; turning the hue back keeps lakes a deep blue instead of a light grey that outshines the land */
 .sunmoon{flex:1;display:grid;grid-template-columns:auto 1fr;gap:3vw;align-items:center}
 .sunmoon .kv{grid-template-columns:auto auto;font-size:1.8rem;gap:1.2vh 1.5vw;justify-content:start}
 .sunmoon .kv b{white-space:nowrap}
@@ -82,7 +86,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .clock b{font:600 1.6rem var(--num);color:var(--accent);margin-left:.8vw}
 /* Themes: daylight (a lifted slate, not white), late-night dim, freezing and alert accents, holiday label */
 :root.day{--bg:#27323d;--panel:#323f4c;--fg:#eef2f5;--muted:#aebbc7;--line:#46545f;--accent:#7cc0ee;--yard:#5ad6a9;--warn:#f4ad5c;--bad:#ff8a80;--cold:#8cc4ff;--feels:#d09ae8;--humid:#c3d05a;--cloud:#9aa6b2;--cloud-fill:rgba(170,182,194,.22);--accent-fill:rgba(124,192,238,.3);--night:rgba(0,0,0,.2)}
-:root.day #radar .leaflet-tile-pane .basemap{filter:grayscale(1) invert(1) brightness(.95)}
+:root.day #radar .leaflet-tile-pane .basemap{filter:invert(1) hue-rotate(180deg) grayscale(.7) brightness(.95) contrast(1.15)}
 body{transition:filter 2s}
 body.dim{filter:brightness(.35)}
 body.freezing #nowTemp{color:var(--cold)}
@@ -129,7 +133,8 @@ window.HOURS = 9; window.RADAR_ROTATE = true;</script>
   <section class="panel left">
     <h2 id="radarTitle">Radar, local</h2>
     <div id="radar"></div>
-    <div class="radarbar"><span class="small num" id="radarTime"></span><span class="small" id="warnKey"></span><button id="radarBtn" type="button" hidden>Pause</button></div>
+    <div class="radarprog"><i id="radarProg"></i></div>
+    <div class="radarbar"><span class="small num" id="radarTime"></span><span class="small dbz" id="dbzKey">Light<i></i>Heavy</span><span class="small" id="warnKey"></span><button id="radarBtn" type="button" hidden>Pause</button></div>
   </section>
 
   <div class="right">
