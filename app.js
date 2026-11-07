@@ -1,7 +1,11 @@
 // Location: the backyard station, or a place the viewer picked (saved on this device only).
 const STORE = (() => { try { localStorage.setItem("wx:t", "1"); localStorage.removeItem("wx:t"); return true; } catch (e) { return false; } })();
-const LOC = (() => { try { return JSON.parse(localStorage.getItem("wx:loc")); } catch (e) { return null; } })();
+const LOC = (() => {   // a saved place needs a name and coordinates; anything else (old or damaged data) counts as no choice yet
+  try { const l = JSON.parse(localStorage.getItem("wx:loc")), num = v => typeof v === "number" && isFinite(v);
+    return l && (l.station === true || (typeof l.name === "string" && l.name && num(l.lat) && num(l.lon))) ? l : null; } catch (e) { return null; }
+})();
 const STATION = !LOC || !!LOC.station;
+const HOME_NAME = "Home station";   // what the header and the picker call the backyard station
 const TZ = (LOC && LOC.tz) || "America/Detroit";
 let LAT = (LOC && LOC.lat) || 42.79, LON = (LOC && LOC.lon) || -85.52, MAP = null;
 // Missing sections (the TV page leaves some out) get a throwaway element so nothing breaks
@@ -38,7 +42,7 @@ async function main() {
     if (!old) return picker(true);
     saveLoc({station: true});
   }
-  $("placeBtn").textContent = STATION ? "Home station" : LOC.name;
+  $("placeBtn").textContent = STATION ? HOME_NAME : LOC.name;
   $("placeBtn").onclick = () => picker(false);
   const [latest, correction] = STATION ? await Promise.all([get("data/latest.json").catch(() => null), get("data/correction.json").catch(() => null)]) : [null, null];
   corr = correction;
@@ -107,6 +111,7 @@ function stationOnly() {
   $("tenNote").textContent = "Model forecast (Open-Meteo best match). Shaded bands are night; the white line is now; the dashed line is 32°F. Tap a chart to read values.";
   $("sources").textContent = "Sources: National Weather Service, Open-Meteo, Iowa Environmental Mesonet radar.";
   $("hourlyTitle").textContent = $("hourlyTitle").textContent.replace("at the station", "here");
+  $("issTitle").textContent = $("issTitle").textContent.replace("from home", "from here");
 }
 
 function saveLoc(v) { try { localStorage.setItem("wx:loc", JSON.stringify(v)); } catch (e) {} }
@@ -130,7 +135,7 @@ function picker(first) {
 <input id="locQ" type="text" placeholder="US ZIP code, or city and state" autocomplete="postal-code">
 <button id="locGo" type="button">Search</button>
 <div class="msg" id="locMsg"></div><div id="locRes"></div>
-<button id="locStation" type="button">Home station</button>
+<button id="locStation" type="button">${HOME_NAME}</button>
 ${first ? "" : '<button id="locCancel" type="button">Cancel</button>'}</div>`;
   document.body.appendChild(box);
   const q = document.getElementById("locQ"), res = document.getElementById("locRes"), msg = t => document.getElementById("locMsg").textContent = t;
@@ -141,8 +146,10 @@ ${first ? "" : '<button id="locCancel" type="button">Cancel</button>'}</div>`;
       saveLoc({name: p.name, lat: p.lat, lon: p.lon, tz: pt.timeZone}); location.reload();
     } catch (e) { msg("The National Weather Service doesn't cover that spot. US locations only."); }
   };
+  let latest = 0;   // a slow answer to an earlier search never overwrites a newer one
   const search = async () => {
     const text = q.value.trim(); if (!text) return;
+    const mine = ++latest;
     msg("Searching..."); res.innerHTML = "";
     let places = [];
     try {
@@ -150,17 +157,26 @@ ${first ? "" : '<button id="locCancel" type="button">Cancel</button>'}</div>`;
         const z = await get(`https://api.zippopotam.us/us/${text}`);
         places = z.places.slice(0, 5).map(p => ({name: `${p["place name"]}, ${p["state abbreviation"]}`, lat: +p.latitude, lon: +p.longitude}));
       } else {
-        // "Grand Rapids, MI", "Grand Rapids MI" and "Grand Rapids Michigan" all work
-        let [city, st] = text.split(",").map(s => s.trim());
-        if (!st) for (const name of [...Object.keys(STATES), ...Object.values(STATES)].sort((x, y) => y.length - x.length)) {
-          const re = new RegExp("\\s+" + name + "$", "i");
-          if (re.test(text)) { st = name; city = text.replace(re, ""); break; }
+        // "Grand Rapids, MI", "Grand Rapids MI" and "Grand Rapids Michigan" all work. Without a comma, a last word that names
+        // a state may be part of the city ("Fort Washington"), so the whole text is searched too and both answers are offered.
+        const geo = name => get("https://geocoding-api.open-meteo.com/v1/search?" + new URLSearchParams({name, count: 10, countryCode: "US"})).then(g => g.results || []);
+        const inState = (list, st) => list.filter(r => [r.admin1, STATES[r.admin1]].some(x => x && x.toLowerCase() === st.toLowerCase()));
+        const [city, st] = text.split(",").map(s => s.trim());
+        let found;
+        if (st) found = inState(await geo(city), st);
+        else {
+          let split = null;
+          for (const name of [...Object.keys(STATES), ...Object.values(STATES)].sort((x, y) => y.length - x.length)) {
+            const re = new RegExp("\\s+" + name + "$", "i");
+            if (re.test(text)) { split = [text.replace(re, ""), name]; break; }
+          }
+          const [whole, part] = await Promise.all([geo(text).catch(() => []), split ? geo(split[0]).then(l => inState(l, split[1])).catch(() => []) : []]);
+          found = whole.concat(part).filter((r, i, all) => all.findIndex(o => o.id === r.id) === i);   // same place from both searches: list it once
         }
-        const g = await get("https://geocoding-api.open-meteo.com/v1/search?" + new URLSearchParams({name: city, count: 10, countryCode: "US"}));
-        places = (g.results || []).filter(r => !st || [r.admin1, STATES[r.admin1]].some(x => x && x.toLowerCase() === st.toLowerCase()))
-          .slice(0, 5).map(r => ({name: `${r.name}, ${STATES[r.admin1] || r.admin1}`, lat: r.latitude, lon: r.longitude}));
+        places = found.slice(0, 5).map(r => ({name: `${r.name}, ${STATES[r.admin1] || r.admin1}`, lat: r.latitude, lon: r.longitude}));
       }
     } catch (e) {}
+    if (mine !== latest) return;
     if (!places.length) return msg("Nothing found. Try a 5-digit ZIP code, or a city and state like \"Traverse City, MI\".");
     msg(places.length > 1 ? "Pick one:" : "");
     places.forEach(p => { const b = document.createElement("button"); b.type = "button"; b.textContent = p.name; b.onclick = () => choose(p); res.appendChild(b); });
@@ -216,8 +232,9 @@ function showHourly(nws, m) {
     row("Temp", c => { const y = yard("temp", c.t, h.temperature_2m[c.i]); return y == null ? "--" : Math.round(y) + "°"; }, "yard") +
     row("Dew pt", c => { const y = yard("dew", c.t, h.dew_point_2m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
     row(STATION ? "Wind (station)" : "Wind", c => { const y = yard("wind", c.t, h.wind_speed_10m[c.i]); return y == null ? "--" : Math.round(y); }, "yard") +
-    row("Gusts (model)", c => Math.round(h.wind_gusts_10m[c.i])) +
-    row("Cloud cover", c => h.cloud_cover[c.i] + "%") +
+    (window.CHART_FONT ? "" :   // TV: fewer rows, so the rest read from across the room
+      row("Gusts (model)", c => Math.round(h.wind_gusts_10m[c.i])) +
+      row("Cloud cover", c => h.cloud_cover[c.i] + "%")) +
     row("Rain chance (NWS)", c => (c.n ? nz(c.n.probabilityOfPrecipitation.value, 0) : h.precipitation_probability[c.i]) + "%");
 }
 
@@ -371,10 +388,12 @@ function showTenDay(m) {
     {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [4, 4], borderWidth: 1}]);
 
   if (window.CHART_FONT) {
-    // TV: two simple charts that read from across the room
+    // TV: two simple charts that read from across the room. Cloud cover is averaged over 12 hours, so it shows
+    // the cloudy and clear stretches instead of hour-to-hour noise; the rain chance line sits on top, thick and bright.
+    const smooth = (v, k) => v.map((_, i) => { const w = v.slice(Math.max(0, i - k), i + k + 1).filter(x => x != null); return w.length ? w.reduce((a, b) => a + b, 0) / w.length : null; });
     mk("cSky", base({min: 0, max: 100, ticks: {color: c("--muted"), font: {size: TVF}, stepSize: 50, callback: v => v + "%"}}), [
-      {label: "Chance of rain", data: h.precipitation_probability, borderColor: c("--accent"), backgroundColor: c("--accent-fill"), fill: true, borderWidth: 3, order: 1},
-      {label: "Cloud cover", data: h.cloud_cover, borderColor: c("--cloud-fill"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 0, order: 2}]);
+      {label: "Chance of rain", data: h.precipitation_probability, borderColor: c("--accent"), backgroundColor: c("--accent-fill"), fill: true, borderWidth: 4, order: 1},
+      {label: "Cloud cover", data: smooth(h.cloud_cover, 6), borderColor: c("--cloud"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 1.5, tension: .4, order: 2}]);
     // Rain and snow per day as labeled bars
     const labels = d.time.map(t => new Date(t + "T12:00").toLocaleDateString("en-US", {weekday: "short"}));
     const amounts = {id: "amounts", afterDatasetsDraw(ch) {
@@ -404,6 +423,15 @@ function showTenDay(m) {
       {label: "Running total in", data: h.precipitation.map(p => run += p || 0), borderColor: c("--fg"), borderWidth: 1}]);
   }
 
+  if (window.CHART_FONT) {
+    // TV: the station's own wind is the bold line; the forecast for open ground and its gusts stay in the background
+    mk("cWind", base({min: 0}), (STATION ?
+      [{label: "Wind at the station", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderWidth: 4, order: 1}] : []).concat([
+      {label: STATION ? "Wind in the open" : "Wind", data: h.wind_speed_10m, borderColor: c("--accent"), borderWidth: STATION ? 1.5 : 3, order: 2,
+        pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 4, pointBackgroundColor: c("--accent"),
+        pointRotation: x => (h.wind_direction_10m[x.dataIndex] + 180) % 360},
+      {label: "Gusts", data: h.wind_gusts_10m, borderColor: c("--warn"), borderWidth: 1, borderDash: [4, 4], order: 3}]));
+  } else
   mk("cWind", base({min: 0}), [
     {label: "Wind mph (open field)", data: h.wind_speed_10m, borderColor: c("--accent"),
       pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 3, pointBackgroundColor: c("--accent"),
@@ -476,8 +504,11 @@ function rotateRadar(map) {
         ready = Promise.all([loaded(sat), loaded(BASE)]);
         sat.addTo(map);
         $("radarTime").textContent = "Latest";
+        $("radarProg").style.width = "100%";
+        $("dbzKey").style.visibility = "hidden";   // the rain color key means nothing on the satellite view
       } else {
         ready = Promise.all([loaded(frames[frames.length - 1].layer), loaded(BASE)]);   // map background too, so no grey flash
+        $("dbzKey").style.visibility = "";
         if (!timer) play();
       }
       map.setView([LAT, LON], zoom, {animate: false});
@@ -491,6 +522,7 @@ function play() { if (matchMedia("(prefers-reduced-motion: reduce)").matches) { 
 function step() {
   frames.forEach((f, i) => f.layer.setOpacity(i === fi ? 0.7 : 0));
   const f = frames[fi]; $("radarTime").textContent = f.mins ? `${f.mins} min ago` : "Latest";
+  $("radarProg").style.width = ((fi + 1) / frames.length * 100) + "%";   // timeline bar under the map fills as the loop plays
   fi = (fi + 1) % frames.length;
 }
 
