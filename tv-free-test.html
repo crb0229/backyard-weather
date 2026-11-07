@@ -147,9 +147,9 @@ window.HOURS = 9; window.RADAR_ROTATE = false;   // TEST: free version, local ra
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <script>document.write('<script src="app.js?t=' + Date.now() + '"><\/script>');   // always the newest app.js, so an update never mixes old and new files</script>
 <script>
-// TEST: free version. Replaces app.js's radar() (it runs after the station data loads, so this swap is in place first):
-// one still image of the newest local radar scan, no loop and no frame-by-frame loading. The image refreshes every
-// 5 minutes (new scans arrive about that often) and the page still reloads every 15. Uses MAP, BASE, LAT, LON from app.js.
+// TEST: free version. Replaces app.js's radar(): one still image of the newest local radar scan, no loop and no
+// frame-by-frame loading. The image refreshes every 5 minutes (new scans arrive about that often) and the page still
+// reloads every 15. Uses MAP, BASE, LAT, LON and timer from app.js.
 radar = function () {
   const map = MAP = L.map("radar", {zoomControl: false, attributionControl: true}).setView([LAT, LON], 8);
   BASE = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution: "© OpenStreetMap contributors", maxZoom: 12, className: "basemap"}).addTo(map);
@@ -160,6 +160,9 @@ radar = function () {
   stamp();
   setInterval(() => { latest.setUrl(url()); stamp(); }, 300000);
 };
+// With the home station, app.js waits for the station data before drawing the radar, so the swap above is in time.
+// For any other location it draws the looping radar right away, before this script runs: stop it and redraw as a still.
+if (MAP) { clearInterval(timer); timer = null; MAP.remove(); MAP = null; radar(); }
 
 // TEST: free version, simpler panels. The now panel keeps only Feels, Humidity and Rain today. The rotating pages
 // (charts, hourly, evening sky, sun and moon, Space Station, wind) are gone, so their app.js drawing is switched off.
