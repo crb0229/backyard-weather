@@ -38,7 +38,8 @@ h2{font:600 1.15rem var(--display);text-transform:uppercase;letter-spacing:.1em;
 #nowKv{grid-template-columns:repeat(4,auto);justify-content:start;column-gap:1.4vw}
 #nowAge{display:none;margin:.4vh 0 0;white-space:nowrap}
 #nowTitle{white-space:nowrap}   /* one line each, so the larger text doesn't make the now panel taller */
-body.stale #nowAge{display:block;color:var(--warn)}   /* shown only when the reading is more than 30 minutes old */
+body.stale #nowAge{display:block;color:var(--muted)}   /* shown only when the reading is more than 30 minutes old */
+body.stale.veryStale #nowAge{color:var(--warn)}   /* orange only past an hour; 30 to 60 minutes is the usual data lag */
 .tenday .num:first-of-type{font-size:0}   /* hides the "|" between high and low */
 .tenday .num:first-of-type span{display:block;font-size:1rem}
 .kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3vh 1.2vw;font-size:1.05rem}
@@ -122,7 +123,7 @@ header button:focus-visible{outline:2px solid var(--accent)}
 window.HOURS = 9; window.RADAR_ROTATE = true;</script>
 </head>
 <body>
-<header><span><h1 style="display:inline">Local Weather</h1> <button id="placeBtn" type="button"></button><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
+<header><span><h1 style="display:inline">Local Weather</h1> <button id="placeBtn" type="button"></button><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span></span></header>
 <div id="alerts"></div>
 
 <div class="grid">
@@ -236,10 +237,18 @@ window.onData = function (latest, model, alerts) {
   // Old reading: say how old, so a stalled station or data job doesn't pass for current conditions
   const mins = latest && latest.time ? Math.round((Date.now() - Date.parse(latest.time)) / 60000) : 0;
   body.classList.toggle("stale", mins > 30);
+  body.classList.toggle("veryStale", mins >= 60);
   if (mins > 30) document.getElementById("nowAge").textContent = `Reading ${mins < 120 ? mins + " min" : Math.floor(mins / 60) + " h " + mins % 60 + " min"} old`;
+  dryRows(latest);
   windMeters(latest);
   setTimeout(findIssPasses, 500);   // after the charts, so the page draws first
 };
+
+// Dry day: no rain so far and none falling, so the two rain rows only add zeros. They come back once either is above 0.
+function dryRows(s) {
+  if (!s || (s.rain_today || 0) > 0 || (s.rain_rate || 0) > 0) return;
+  document.querySelectorAll("#nowKv span").forEach(k => { if (k.textContent === "Rain today" || k.textContent === "Rain rate") { k.nextElementSibling.remove(); k.remove(); } });
+}
 
 // Wind meters. The reading changes about every 15 minutes, so the motion shows that reading:
 // the compass arrow sweeps in from north and sways a little (more when gusty), and the cups spin at a rate
