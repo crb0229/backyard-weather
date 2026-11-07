@@ -101,12 +101,24 @@ header button{font:500 .85rem var(--body);background:transparent;color:var(--acc
 header button:focus-visible{outline:2px solid var(--accent)}
 /* ---------- TEST changes (tv-free-test.html only) ---------- */
 #testTag{font:700 .9rem var(--display);color:#000;background:var(--warn);border-radius:4px;padding:1px 8px;margin-left:.8vw;vertical-align:.35em}
+/* Free version: a shorter now panel and one fixed 3-day forecast in place of the rotating pages */
+.strip{grid-template-columns:1fr}
+#nowKv{grid-template-columns:repeat(4,auto)}
+.days3{flex:1;display:flex;flex-direction:column;min-height:0}
+.three{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.2vw;min-height:0}
+.three>div{border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2vh;text-align:center;padding:1vh .6vw}
+.three .name{font:600 2.2rem var(--display)}
+.three .temps{font:600 3.2rem/1 var(--display);white-space:nowrap}   /* narrow digits, so two temperatures fit a third of the panel */
+.three .temps span+span::before{content:"/";color:var(--muted);margin:0 .2em}
+.three svg{width:14vh;height:14vh}
+.three .word{font:600 1.6rem/1.2 var(--display)}
+.three .chance{font-size:1.3rem;color:var(--accent)}
 </style>
 <script>window.CHART_FONT = Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize) * .9);   // chart text matches the page text size
 window.HOURS = 9; window.RADAR_ROTATE = false;   // TEST: free version, local radar only, no view rotation</script>
 </head>
 <body>
-<header><span><h1 style="display:inline">Local Weather</h1><span id="testTag">FREE TEST</span> <button id="placeBtn" type="button"></button><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
+<header><span><h1 style="display:inline">Local Weather</h1><span id="testTag">FREE TEST</span> <button id="placeBtn" type="button"></button><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b></span><span class="small"><span id="problems" hidden></span> <span id="updated"></span></span></header>
 <div id="alerts"></div>
 
 <div class="grid">
@@ -122,52 +134,17 @@ window.HOURS = 9; window.RADAR_ROTATE = false;   // TEST: free version, local ra
       <div><h2 id="nowTitle">Now at the station</h2><div class="kv" id="nowKv"></div><p class="small" id="nowAge"></p></div>
       <div class="strip">
         <div><h2>Rain and storms</h2><div class="callout" id="rainCall">Checking...</div></div>
-        <div><h2>Tonight's low</h2><div class="kv"><span>NWS</span><b id="lowNws">--</b><span class="yard">Station</span><b class="yard" id="lowYard">--</b></div><span id="frostFlag"></span></div>
-        <div><h2>Next 48 h</h2><div class="kv"><span>Snow</span><b id="snowAmt">--</b><span>Ice</span><b id="iceAmt">--</b></div></div>
       </div>
     </section>
 
-    <section class="panel rotor" id="rotor" style="padding:0">
-      <div class="slide on">
-        <div class="slidehead"><h2>10-day outlook</h2><span class="dots"></span></div>
-        <div class="tenday" id="tenday"></div>
-        <div class="chart"><canvas id="cTemp"></canvas></div>
-      </div>
-      <div class="slide">
-        <div class="slidehead"><h2 id="hourlyTitle">Next 9 hours at the station</h2><span class="dots"></span></div>
-        <table id="hourly"></table>
-        <h2>Evening sky, 7 PM to midnight</h2>
-        <div class="eve" id="evenings"></div>
-      </div>
-      <div class="slide">
-        <div class="slidehead"><h2>Sky and rain, 10 days</h2><span class="dots"></span></div>
-        <div class="chart"><canvas id="cSky"></canvas></div>
-        <div class="chart" style="flex:.85"><canvas id="cPrecip"></canvas></div>
-      </div>
-      <div class="slide">
-        <div class="slidehead"><h2>Sun and moon today</h2><span class="dots"></span></div>
-        <div class="sunmoon">
-          <div><h2>Sun</h2><div class="kv"><span>Sunrise</span><b id="sunRise">--</b><span>Sunset</span><b id="sunSet">--</b><span>Daylight</span><b id="dayLen">--</b></div><p class="small" id="dayChange"></p></div>
-          <div class="moon"><svg viewBox="0 0 100 100" id="moonPic"></svg><div><div class="callout" id="moonName">--</div><div class="num" id="moonLit"></div><p class="small" id="moonNext"></p><p class="small" id="moonCredit" style="font-size:.7rem"></p></div></div>
-        </div>
-      </div>
-      <div class="slide">
-        <div class="slidehead"><h2>Space Station sightings from home</h2><span class="dots"></span></div>
-        <div class="issPic"><img src="https://images-assets.nasa.gov/image/iss056e201248/iss056e201248~medium.jpg" alt="" onerror="this.parentNode.remove()"><span>Photo: NASA</span></div>
-        <table class="iss" id="issTable"><tr><td>Working out passes...</td></tr></table>
-        <p class="small" id="issNote"></p>
-      </div>
-      <div class="slide">
-        <div class="slidehead"><h2>Wind, 10 days</h2><span class="dots"></span></div>
-        <div class="chart"><canvas id="cWind"></canvas></div>
-      </div>
+    <section class="panel days3">
+      <h2>3-day forecast</h2>
+      <div class="three" id="three"><div>Checking...</div></div>
     </section>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" integrity="sha384-dug+JxfBvklEQdJ4AYuBBAIScUz0bVN73xpy273gcAwHjb3qI0fXmuYNaNfdyYJG" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js" integrity="sha384-e6V1JVpc+kVNTxT0gEOla7yL4c92Romsw7itPoipfzHbEjzUwPhTv6oeVDMHHzqT" crossorigin="anonymous"></script>
 <script>document.write('<script src="app.js?t=' + Date.now() + '"><\/script>');   // always the newest app.js, so an update never mixes old and new files</script>
 <script>
 // TEST: free version. Replaces app.js's radar() (it runs after the station data loads, so this swap is in place first):
@@ -183,25 +160,48 @@ radar = function () {
   stamp();
   setInterval(() => { latest.setUrl(url()); stamp(); }, 300000);
 };
+
+// TEST: free version, simpler panels. The now panel keeps only Feels, Humidity and Rain today. The rotating pages
+// (charts, hourly, evening sky, sun and moon, Space Station, wind) are gone, so their app.js drawing is switched off.
+const fullNow = showNow;
+showNow = function (s) {
+  fullNow(s);
+  document.querySelectorAll("#nowKv span").forEach(k => { if (!["Feels", "Humidity", "Rain today"].includes(k.textContent)) { k.nextElementSibling.remove(); k.remove(); } });
+};
+showTenDay = showSunMoon = showHourly = showEvenings = function () {};
+
+// TEST: 3-day forecast from the NWS forecast app.js already loads (it hands it to showDays). One card per day:
+// high / low, an icon picked from the NWS wording so the two always agree, the wording, and the rain or snow chance.
+// In the evening the NWS forecast starts with tonight, so the first card is "Tonight" with the low only.
+const MOON = '<path d="M19 5a11 11 0 1 0 8 17A9 9 0 0 1 19 5z" fill="#e6ecf1"/>';
+function iconFor(words, night) {
+  const w = words.toLowerCase();
+  if (/thunder/.test(w)) return ICON.storm;
+  if (/snow|flurr|sleet|ice|blizzard/.test(w)) return ICON.snow;
+  if (/rain|shower|drizzle/.test(w)) return ICON.rain;
+  if (/fog|haze|smoke/.test(w)) return ICON.fog;
+  if (/partly|mostly sunny|mostly clear/.test(w)) return night ? MOON : ICON.part;
+  if (/cloud|overcast/.test(w)) return ICON.cloud;
+  return night ? MOON : ICON.sun;
+}
+showDays = function (periods) {
+  const cards = [];
+  let i = 0;
+  if (periods[0] && !periods[0].isDaytime) { cards.push({name: "Tonight", main: periods[0], night: periods[0]}); i = 1; }
+  for (; cards.length < 3 && i < periods.length; i += 2)
+    cards.push({name: cards.length ? periods[i].name : "Today", main: periods[i], day: periods[i], night: periods[i + 1]});
+  document.getElementById("three").innerHTML = cards.map(c => {
+    const words = c.main.shortForecast, pops = [c.day, c.night].filter(Boolean).map(p => p.probabilityOfPrecipitation.value || 0);
+    const pop = Math.max(...pops), kind = /snow|flurr|sleet|ice/i.test(words) ? "snow" : "rain";
+    const temps = (c.day ? `<span class="hi">${esc(c.day.temperature)}°</span>` : "") + (c.night ? `<span class="lo">${esc(c.night.temperature)}°</span>` : "");
+    return `<div><span class="name">${esc(c.name)}</span><span class="temps">${temps}</span><svg viewBox="0 0 32 32">${iconFor(words, !c.day)}</svg>` +
+      `<span class="word">${esc(words)}</span><span class="chance">${pop ? pop + "% " + kind : "Dry"}</span></div>`;
+  }).join("");
+};
 </script>
 <script>
-// Rotate the detail panel. The 10-day outlook is the home view: 20 seconds, the others 10.
-(function () {
-  const slides = document.querySelectorAll("#rotor .slide");
-  let n = 0;
-  function show() {
-    slides.forEach((s, i) => {
-      s.classList.toggle("on", i === n);
-      s.querySelector(".dots").innerHTML = Array.from(slides, (_, j) => `<span class="${j === n ? "on" : ""}"></span>`).join("");
-    });
-  }
-  function next() { show(); setTimeout(() => { n = (n + 1) % slides.length; next(); }, n === 0 ? 20000 : 10000); }
-  next();
-})();
-
 // Themes. app.js calls onData once the station, forecast and alerts are in, before the charts are drawn.
 // Daylight theme between sunrise and sunset; the page reloads every 15 minutes, so it switches within 15 minutes.
-let issPasses = [];
 window.onData = function (latest, model, alerts) {
   const root = document.documentElement, body = document.body;
   const nowLocal = new Date().toLocaleString("sv-SE", {timeZone: TZ}).replace(" ", "T").slice(0, 16);
@@ -213,7 +213,6 @@ window.onData = function (latest, model, alerts) {
   const mins = latest && latest.time ? Math.round((Date.now() - Date.parse(latest.time)) / 60000) : 0;
   body.classList.toggle("stale", mins > 30);
   if (mins > 30) document.getElementById("nowAge").textContent = `${latest.source ? "Reading" : "Station reading"} is ${mins < 120 ? mins + " min" : Math.floor(mins / 60) + " h " + mins % 60 + " min"} old`;
-  setTimeout(findIssPasses, 500);   // after the charts, so the page draws first
 };
 
 // Holidays: a colored greeting next to the title for the whole holiday window, plus a light animation over the radar
@@ -317,59 +316,12 @@ const fx = (function () {
   setInterval(() => { const r = () => Math.round(Math.random() * 8 - 4); document.body.style.transform = `translate(${r()}px,${r()}px)`; }, 600000);
 })();
 
-// Space Station passes, using the orbit data the What's Overhead site refreshes every day.
-// Same math as that app: a pass counts when the station is above 10 degrees, lit by the sun, and the yard's sky is dark.
-async function findIssPasses() {
-  const note = document.getElementById("issNote"), table = document.getElementById("issTable");
-  try {
-    const text = await fetch("/overhead/data/stations.tle", {cache: "no-store"}).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); });
-    const lines = text.split(/\r?\n/), i = lines.findIndex(l => l.startsWith("1 25544"));
-    const rec = satellite.twoline2satrec(lines[i], lines[i + 1]);
-    const RAD = Math.PI / 180, obs = {latitude: LAT * RAD, longitude: LON * RAD, height: 0.25};
-    const sunAt = date => {   // low-precision sun position, accurate to about 0.01 degree
-      const n = date.getTime() / 864e5 + 2440587.5 - 2451545, L = (280.46 + 0.9856474 * n) % 360, g = ((357.528 + 0.9856003 * n) % 360) * RAD;
-      const lam = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RAD, eps = (23.439 - 4e-7 * n) * RAD;
-      return {x: Math.cos(lam), y: Math.cos(eps) * Math.sin(lam), z: Math.sin(eps) * Math.sin(lam)};
-    };
-    const passes = []; let run = null;
-    for (let t = Date.now(), end = t + 10 * 864e5; t < end; t += 10000) {
-      const date = new Date(t), gmst = satellite.gstime(date), u = sunAt(date);
-      const sunEl = satellite.ecfToLookAngles(obs, satellite.eciToEcf({x: u.x * 1.5e8, y: u.y * 1.5e8, z: u.z * 1.5e8}, gmst)).elevation / RAD;
-      let vis = false, look = null;
-      if (sunEl < -6) {
-        const p = satellite.propagate(rec, date).position;
-        if (p) {
-          look = satellite.ecfToLookAngles(obs, satellite.eciToEcf(p, gmst));
-          const proj = p.x * u.x + p.y * u.y + p.z * u.z, lit = proj >= 0 || Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z - proj * proj) >= 6371;
-          vis = look.elevation > 0 && lit;
-        }
-      } else t += 50000;   // daylight: skip ahead faster
-      if (vis) {
-        const el = look.elevation / RAD, az = look.azimuth / RAD;
-        if (!run) run = {start: t, startAz: az, max: el, end: t, endAz: az};
-        if (el > run.max) run.max = el;
-        run.end = t; run.endAz = az;
-      } else if (run) { if (run.max >= 10) passes.push(run); run = null; }
-    }
-    issPasses = passes;
-    const dir = az => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(az / 45) % 8];
-    const height = el => el >= 60 ? "Nearly overhead" : el >= 30 ? "Halfway up the sky" : "Low in the sky";
-    const when = t => new Date(t).toLocaleString("en-US", {timeZone: TZ, weekday: "short", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit"}).replace(",", "");
-    table.innerHTML = passes.length ? passes.slice(0, 6).map(r => `<tr><td class="when">${when(r.start)}</td><td>${dir(r.startAz)} to ${dir(r.endAz)}</td><td>${height(r.max)}</td><td class="num">${Math.max(1, Math.round((r.end - r.start) / 60000))} min</td></tr>`).join("")
-      : "<tr><td>No visible passes in the next 10 days. The station is up there, but it's either in daylight or in Earth's shadow when it crosses.</td></tr>";
-    note.textContent = "Times are when it first appears. Looks like a bright, steady star moving across the sky, no blinking.";
-  } catch (e) { table.innerHTML = "<tr><td>Couldn't work out passes right now.</td></tr>"; }
-}
-
 // Date and time in the header, Michigan time, refreshed every 15 seconds.
 (function () {
   function tick() {
     const now = new Date(), tz = TZ;
     document.getElementById("today").textContent = now.toLocaleDateString("en-US", {timeZone: tz, weekday: "long", month: "long", day: "numeric", year: "numeric"});
     document.getElementById("clock").textContent = now.toLocaleTimeString("en-US", {timeZone: tz, hour: "numeric", minute: "2-digit"});
-    const soon = issPasses.find(r => r.end > now.getTime() && r.start - now.getTime() < 15 * 60000);
-    const mins = soon ? Math.round((soon.start - now.getTime()) / 60000) : 0;
-    document.getElementById("issSoon").textContent = !soon ? "" : mins > 0 ? `Space Station in ${mins} min` : "Space Station overhead now";
   }
   tick(); setInterval(tick, 15000);
 })();
