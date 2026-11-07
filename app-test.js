@@ -38,7 +38,7 @@ async function main() {
     if (!old) return picker(true);
     saveLoc({station: true});
   }
-  $("placeBtn").textContent = STATION ? "Caledonia, MI" : LOC.name;
+  $("placeBtn").textContent = STATION ? "Home station" : LOC.name;
   $("placeBtn").onclick = () => picker(false);
   const [latest, correction] = STATION ? await Promise.all([get("data/latest.json").catch(() => null), get("data/correction.json").catch(() => null)]) : [null, null];
   corr = correction;
@@ -131,7 +131,7 @@ function picker(first) {
 <input id="locQ" type="text" placeholder="US ZIP code, or city and state" autocomplete="postal-code">
 <button id="locGo" type="button">Search</button>
 <div class="msg" id="locMsg"></div><div id="locRes"></div>
-<button id="locStation" type="button">Caledonia, MI</button>
+<button id="locStation" type="button">Home station</button>
 ${first ? "" : '<button id="locCancel" type="button">Cancel</button>'}</div>`;
   document.body.appendChild(box);
   const q = document.getElementById("locQ"), res = document.getElementById("locRes"), msg = t => document.getElementById("locMsg").textContent = t;
