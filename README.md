@@ -8,7 +8,7 @@ Android TV app (APK): https://crb0229.github.io/backyard-weather/tv.apk
 ## What you see on the TV
 
 - **Always on the left:** local radar loop (KGRR area).
-- **Always on the right top:** current station temperature (large) plus key readings (humidity, wind, pressure, rain, etc.). Stale readings are flagged.
+- **Always on the right top:** current station temperature (large) plus key readings (humidity, pressure, rain, etc.), a wind compass whose arrow sways around the wind direction, and wind cups that spin with the wind speed and gusts. Stale readings are flagged.
 - **Rotating detail panel** (10-day outlook stays up longest):
   - 10-day temperature, sky, precipitation, and wind charts
   - Next 9 hours + evening sky conditions

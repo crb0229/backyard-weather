@@ -99,6 +99,22 @@ body.alerting .panel{border:2px solid var(--warn)}
 #radar .leaflet-control-attribution{font-size:.7rem}   /* dark, not grey, while map pieces load */
 header button{font:500 .85rem var(--body);background:transparent;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:2px 10px;margin-left:.6vw}
 header button:focus-visible{outline:2px solid var(--accent)}
+/* Wind meters: a third column in the now panel, compass then spinning cups */
+.grid{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}   /* the wider now panel never squeezes the radar */
+.top{grid-template-columns:auto 1fr auto}
+.strip{grid-column:1/4}
+#nowKv{grid-template-columns:repeat(2,auto)}   /* wind and gust moved to the meters, so the readings fit two columns beside them */
+#nowKv span{white-space:nowrap}
+#windMeters{display:flex;gap:1vw}
+#windMeters[hidden]{display:none}
+.meter{display:flex;flex-direction:column;align-items:center;gap:.3vh;text-align:center}
+.meter svg{width:11vh;height:11vh;overflow:visible}
+.meter .num{font-size:.95rem;white-space:pre-line;line-height:1.25}
+.meter text{font:600 9px var(--display);fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+#windDir{transition:transform 2.5s cubic-bezier(.3,1.4,.5,1)}   /* sweeps in from north and settles with a small overshoot */
+#windSway{animation:sway 5s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(calc(var(--sway,4deg) * -1))}to{transform:rotate(var(--sway,4deg))}}
+@media (prefers-reduced-motion:reduce){#windDir{transition:none}#windSway{animation:none}}
 </style>
 <script>window.CHART_FONT = Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize) * .9);   // chart text matches the page text size
 window.HOURS = 9; window.RADAR_ROTATE = true;</script>
@@ -118,6 +134,29 @@ window.HOURS = 9; window.RADAR_ROTATE = true;</script>
     <section class="panel top">
       <div class="big" id="nowTemp">--</div>
       <div><h2 id="nowTitle">Now at the station</h2><div class="kv" id="nowKv"></div><p class="small" id="nowAge"></p></div>
+      <div id="windMeters" hidden>
+        <div class="meter">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="var(--line)" stroke-width="2"/>
+            <text x="50" y="14">N</text><text x="86" y="50">E</text><text x="50" y="86">S</text><text x="14" y="50">W</text>
+            <g id="windDir" style="transform-origin:50px 50px"><g id="windSway" style="transform-origin:50px 50px">
+              <!-- points the way the wind blows: tail on the side it comes from, head downwind -->
+              <line x1="50" y1="22" x2="50" y2="72" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>
+              <path d="M50 82 L41 66 L59 66 Z" fill="var(--accent)"/>
+              <path d="M44 20 L50 28 L56 20" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linejoin="round"/>
+            </g></g>
+            <circle cx="50" cy="50" r="4" fill="var(--fg)"/>
+          </svg>
+          <span class="num" id="windFrom">--</span>
+        </div>
+        <div class="meter">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <g id="windCups"></g>
+            <circle cx="50" cy="50" r="6" fill="var(--fg)"/>
+          </svg>
+          <span class="num" id="windSpeed">--</span>
+        </div>
+      </div>
       <div class="strip">
         <div><h2>Rain and storms</h2><div class="callout" id="rainCall">Checking...</div></div>
         <div><h2>Tonight's low</h2><div class="kv"><span>NWS</span><b id="lowNws">--</b><span class="yard">Station</span><b class="yard" id="lowYard">--</b></div><span id="frostFlag"></span></div>
@@ -196,8 +235,47 @@ window.onData = function (latest, model, alerts) {
   const mins = latest && latest.time ? Math.round((Date.now() - Date.parse(latest.time)) / 60000) : 0;
   body.classList.toggle("stale", mins > 30);
   if (mins > 30) document.getElementById("nowAge").textContent = `${latest.source ? "Reading" : "Station reading"} is ${mins < 120 ? mins + " min" : Math.floor(mins / 60) + " h " + mins % 60 + " min"} old`;
+  windMeters(latest);
   setTimeout(findIssPasses, 500);   // after the charts, so the page draws first
 };
+
+// Wind meters. The reading changes about every 15 minutes, so the motion shows that reading:
+// the compass arrow sweeps in from north and sways a little (more when gusty), and the cups spin at a rate
+// set by the wind speed, speeding up to the gust speed for a few seconds now and then. Calm wind: cups stand still.
+function windMeters(s) {
+  const box = document.getElementById("windMeters");
+  if (!s || s.wind == null) return;   // no wind reading (some NWS stations): keep the text rows, no meters
+  box.hidden = false;
+  // Wind and gust now live in the meters, so drop those two rows from the readings
+  document.querySelectorAll("#nowKv span").forEach(k => { if (k.textContent === "Wind" || k.textContent === "Gust") { k.nextElementSibling.remove(); k.remove(); } });
+  const wind = Math.max(0, s.wind), gust = s.gust == null ? wind : Math.max(wind, s.gust), dir = s.winddir;
+  const name = dir == null ? "" : ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"][Math.round(dir / 22.5) % 16];
+  document.getElementById("windFrom").textContent = wind < 0.5 ? "Calm" : name ? "From " + name : "--";
+  document.getElementById("windSpeed").textContent = `${Math.round(wind)} mph` + (s.gust == null ? "" : `\ngust ${Math.round(gust)}`) + (s.maxgust_today == null ? "" : `, max ${Math.round(s.maxgust_today)}`);
+  const arrow = document.getElementById("windDir");
+  if (dir != null && wind >= 0.5) {
+    arrow.style.setProperty("--sway", Math.min(15, 3 + (gust - wind)) + "deg");
+    requestAnimationFrame(() => requestAnimationFrame(() => { arrow.style.transform = `rotate(${dir}deg)`; }));   // unturned, the arrow shows wind from the north; two frames, so the sweep plays
+  } else arrow.style.display = "none";
+  // Cups: three arms, one cup marked so the turning is easy to see
+  const cups = document.getElementById("windCups");
+  cups.innerHTML = [0, 120, 240].map((a, i) => `<g transform="rotate(${a} 50 50)"><line x1="50" y1="50" x2="50" y2="16" stroke="var(--muted)" stroke-width="3"/>` +
+    `<path d="M41 16 A9 9 0 0 0 59 16 Z" fill="${i ? "var(--accent)" : "var(--warn)"}"/></g>`).join("");
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches || wind < 0.5) return;
+  const rps = mph => Math.min(2.5, mph / 5);   // 5 mph = one turn a second, capped so fast wind doesn't strobe on a TV
+  let angle = 0, speed = 0, target = wind, gustUntil = 0, nextGust = Date.now() + 8000 + Math.random() * 8000, frame = 0, last = performance.now();
+  (function spin(now) {
+    requestAnimationFrame(spin);
+    if (frame++ % 2) return;   // 30 frames a second is plenty, same as the holiday animation
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    const t = Date.now();
+    if (gust > wind + 1 && t > nextGust) { gustUntil = t + 2500 + Math.random() * 2000; nextGust = t + 10000 + Math.random() * 15000; }
+    target = t < gustUntil ? gust : wind;
+    speed += (target - speed) * Math.min(1, dt * 1.5);   // eases up and down like real cups
+    angle = (angle + rps(speed) * 360 * dt) % 360;
+    cups.setAttribute("transform", `rotate(${angle.toFixed(1)} 50 50)`);
+  })(performance.now());
+}
 
 // Holidays: a colored greeting next to the title for the whole holiday window, plus a light animation over the radar
 // for some of them. Add ?date=2026-12-20 to the page address to preview a date. Also late-night dim (11 PM to 6 AM)
