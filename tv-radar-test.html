@@ -128,7 +128,8 @@ header button:focus-visible{outline:2px solid var(--accent)}
 @media (prefers-reduced-motion:reduce){#windDir{transition:none}#windSway{animation:none}}
 </style>
 <script>window.CHART_FONT = Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.15);   // chart text a little larger than the page text, readable across the room
-window.HOURS = 9; window.RADAR_ROTATE = true;</script>
+window.HOURS = 9; window.RADAR_ROTATE = true;
+window.RAINBOW_TILES = "";   // TEST: the Cloudflare worker address for Rainbow forecast tiles, e.g. "https://rainbow-tiles.NAME.workers.dev"; empty turns the forecast frames off</script>
 </head>
 <body>
 <header><span><h1 style="display:inline">Local Weather</h1> <button id="placeBtn" type="button"></button><span id="holiday"></span></span><span class="clock"><span id="today"></span> <b class="num" id="clock"></b><span id="issSoon"></span></span><span class="small"><span id="problems" hidden></span></span></header>
