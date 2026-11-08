@@ -10,7 +10,7 @@
 /* Layout: one 16:9 screen, no scrolling. Left: radar, always on. Right top: now, always on. Right bottom: detail that rotates. Sizes scale with screen height (vh). */
 :root{
   --bg:#0f151b; --panel:#18212a; --fg:#e6ecf1; --muted:#93a1ae; --line:#2b3742;
-  --accent:#6fb0de; --yard:#4cc79c; --warn:#f0a24a; --bad:#ff7a70; --cold:#7ab8ff;
+  --accent:#6fb0de; --sun:#f6c453; --yard:#4cc79c; --warn:#f0a24a; --bad:#ff7a70; --cold:#7ab8ff;
   --feels:#c48ae0; --humid:#b5c247; --cloud:#8a96a2; --cloud-fill:rgba(160,172,184,.22); --accent-fill:rgba(111,176,222,.3); --night:rgba(0,0,0,.28);
   --display:"Barlow Semi Condensed",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --num:"IBM Plex Mono",ui-monospace,monospace;
   color-scheme:dark; font-size:1.9vh;
@@ -74,21 +74,33 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 #hourlyKey{margin:0}
 .eve .c0{border-color:var(--yard)}
 #radar .leaflet-tile-pane .basemap{filter:invert(1) hue-rotate(180deg) grayscale(.7) brightness(.75) contrast(1.15)}   /* dark map; turning the hue back keeps lakes a deep blue instead of a light grey that outshines the land */
-.sunmoon{flex:1;display:grid;grid-template-columns:auto auto;justify-content:space-between;gap:2vw;align-items:center;align-content:center}
-.sunmoon .kv{grid-template-columns:auto auto;font-size:1.6rem;gap:1.2vh 1.5vw;justify-content:start}
-.sunmoon .kv b{white-space:nowrap}
-.sunmoon .small{font-size:1.15rem}
+.sunmoon{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;gap:.8vh;min-height:0;position:relative;padding-bottom:1.4vh}   /* sky arc on top, sun and moon details below */
+.arcbox{position:relative}
+#sunArc{display:block;width:100%;height:15vh;overflow:visible}
+#sunNow{position:absolute;left:0;top:0;margin:0;font-size:1.15rem}
+.arclabels{display:flex;justify-content:space-between;align-items:baseline;gap:1.6vw;margin-top:.4vh}
+.arclabels div{display:flex;flex-direction:column;line-height:1.25}
+.arclabels .r{text-align:right}
+.arclabels b{font:600 1.5rem var(--num);white-space:nowrap}
+.arclabels .tw b{font-size:1.15rem;color:var(--muted)}
+.arclabels span{font-size:1rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.arclabels .grow{flex:1}
+.smrow{display:grid;grid-template-columns:auto auto;justify-content:space-between;gap:2vw;align-items:center}
+.sunmoon .kv{grid-template-columns:auto auto;font-size:1.45rem;gap:.8vh 1.2vw;justify-content:start}
+.sunmoon .kv b,.sunmoon .kv span{white-space:nowrap}
+.sunmoon .small{font-size:1.1rem;margin:.6vh 0 0}
 .moon{display:flex;align-items:center;gap:1.2vw}
-.moon .moonPhoto{width:15vh;height:15vh;flex:none;mix-blend-mode:screen}   /* black sky in the photo blends into the panel */
-.moon svg{width:14vh;height:14vh;flex:none}
-.moon .callout{font-size:1.6rem;white-space:nowrap}
-#moonNext{white-space:pre;line-height:1.5;font-size:1.05rem}   /* one line per date, never wrapped mid-date */
-#moonLit{font-size:1.35rem}
+.moon .moonPhoto{width:12vh;height:12vh;flex:none;mix-blend-mode:screen}   /* black sky in the photo blends into the panel */
+.moon svg{width:11vh;height:11vh;flex:none}
+.moon .callout{font-size:1.5rem;white-space:nowrap}
+.moon .kv{font-size:1.2rem;gap:.3vh 1vw;margin-top:.5vh}
+#moonNext{white-space:pre;line-height:1.35;font-size:1rem}   /* one line per date, never wrapped mid-date */
+#moonLit{font-size:1.25rem}
 #moonCredit{position:absolute;right:0;bottom:0;margin:0}   /* the photo credit sits quietly in the corner */
 .clock{font:600 1.6rem var(--display)}
 .clock b{font:600 1.6rem var(--num);color:var(--accent);margin-left:.8vw}
 /* Themes: daylight (a lifted slate, not white), late-night dim, freezing and alert accents, holiday label */
-:root.day{--bg:#27323d;--panel:#323f4c;--fg:#eef2f5;--muted:#aebbc7;--line:#46545f;--accent:#7cc0ee;--yard:#5ad6a9;--warn:#f4ad5c;--bad:#ff8a80;--cold:#8cc4ff;--feels:#d09ae8;--humid:#c3d05a;--cloud:#9aa6b2;--cloud-fill:rgba(170,182,194,.22);--accent-fill:rgba(124,192,238,.3);--night:rgba(0,0,0,.2)}
+:root.day{--sun:#ffd166;--bg:#27323d;--panel:#323f4c;--fg:#eef2f5;--muted:#aebbc7;--line:#46545f;--accent:#7cc0ee;--yard:#5ad6a9;--warn:#f4ad5c;--bad:#ff8a80;--cold:#8cc4ff;--feels:#d09ae8;--humid:#c3d05a;--cloud:#9aa6b2;--cloud-fill:rgba(170,182,194,.22);--accent-fill:rgba(124,192,238,.3);--night:rgba(0,0,0,.2)}
 :root.day #radar .leaflet-tile-pane .basemap{filter:invert(1) hue-rotate(180deg) grayscale(.7) brightness(.95) contrast(1.15)}
 body{transition:filter 2s}
 body.dim{filter:brightness(.35)}
@@ -212,8 +224,13 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
       <div class="slide">
         <div class="slidehead"><h2>Sun and moon today</h2><span class="dots"></span></div>
         <div class="sunmoon">
-          <div><h2>Sun</h2><div class="kv"><span>Sunrise</span><b id="sunRise">--</b><span>Sunset</span><b id="sunSet">--</b><span>Daylight</span><b id="dayLen">--</b></div><p class="small" id="dayChange"></p></div>
-          <div class="moon"><svg viewBox="0 0 100 100" id="moonPic"></svg><div><div class="callout" id="moonName">--</div><div class="num" id="moonLit"></div><p class="small" id="moonNext"></p><p class="small" id="moonCredit" style="font-size:.7rem"></p></div></div>
+          <div class="arcbox"><svg id="sunArc" viewBox="0 0 1000 210"></svg><p class="small" id="sunNow"></p>
+            <div class="arclabels"><div class="tw"><b id="sunDawn">--</b><span>Dawn</span></div><div><b id="sunRise">--</b><span>Sunrise</span></div><div class="grow"></div><div class="r"><b id="sunSet">--</b><span>Sunset</span></div><div class="r tw"><b id="sunDusk">--</b><span>Dusk</span></div></div></div>
+          <div class="smrow">
+            <div><div class="kv"><span>Daylight</span><b id="dayLen">--</b><span>Midday sun</span><b id="sunHigh">--</b></div><p class="small" id="dayChange"></p><p class="small" id="solstice"></p></div>
+            <div class="moon"><svg viewBox="0 0 100 100" id="moonPic"></svg><div><div class="callout" id="moonName">--</div><div class="num" id="moonLit"></div><div class="kv" id="moonTimes"></div><p class="small" id="moonNext"></p></div></div>
+          </div>
+          <p class="small" id="moonCredit" style="font-size:.7rem"></p>
         </div>
       </div>
       <div class="slide" id="issSlide" hidden>   <!-- shown once there are passes to list -->
@@ -233,7 +250,7 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" integrity="sha384-dug+JxfBvklEQdJ4AYuBBAIScUz0bVN73xpy273gcAwHjb3qI0fXmuYNaNfdyYJG" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js" integrity="sha384-e6V1JVpc+kVNTxT0gEOla7yL4c92Romsw7itPoipfzHbEjzUwPhTv6oeVDMHHzqT" crossorigin="anonymous"></script>
-<script>document.write(['app-tv.js', 'holiday-art.js', 'holiday.js'].map(f => '<script src="' + f + '?t=' + Date.now() + '"><\/script>').join(''));   // always the newest app.js, so an update never mixes old and new files</script>
+<script>document.write(['sky.js', 'app-tv.js', 'holiday-art.js', 'holiday.js'].map(f => '<script src="' + f + '?t=' + Date.now() + '"><\/script>').join(''));   // always the newest app.js, so an update never mixes old and new files</script>
 <script>
 // Rotate the detail panel. The 10-day outlook is the home view: 20 seconds, the others 10.
 // Hidden pages (the Space Station page with nothing to show) are left out of the rotation and the dots.

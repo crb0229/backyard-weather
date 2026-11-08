@@ -289,15 +289,17 @@ function showEvenings(m) {
   }).join("");
 }
 
-// Sunrise and sunset come from the model feed. Moon phase is worked out here from a known new moon; it's within about half a day.
+// The sun's path today as an arc, with dawn, sunrise, sunset and dusk; moonrise and moonset; the next solstice.
+// Times are worked out here by sky.js (checked against the US Naval Observatory); daylight length comes from the model feed.
+let SKY_TODAY = null;
 function showSunMoon(m) {
-  const d = m.daily, clock = t => { const [h, mi] = t.slice(11, 16).split(":").map(Number); return (h % 12 || 12) + ":" + String(mi).padStart(2, "0") + (h < 12 ? " AM" : " PM"); };
-  const len = s => Math.floor(s / 3600) + " h " + Math.round(s % 3600 / 60) + " min";
+  const d = m.daily, len = s => Math.floor(s / 3600) + " h " + Math.round(s % 3600 / 60) + " min";
+  const clock = t => t ? new Date(t).toLocaleTimeString("en-US", {timeZone: TZ, hour: "numeric", minute: "2-digit"}) : "--";
+  const span = ms => { const mi = Math.round(ms / 6e4); return mi < 60 ? mi + " min" : Math.floor(mi / 60) + " h " + (mi % 60) + " min"; };
   const diff = Math.round((d.daylight_duration[0] - d.daylight_duration[1]) / 60);
-  $("sunRise").textContent = clock(d.sunrise[0]);
-  $("sunSet").textContent = clock(d.sunset[0]);
   $("dayLen").textContent = len(d.daylight_duration[0]);
   $("dayChange").textContent = diff === 0 ? "Same daylight as tomorrow" : `Tomorrow: ${Math.abs(diff)} min ${diff > 0 ? "less" : "more"} daylight`;
+  if (window.SKY) try { sunArc(m, clock, span); } catch (e) { note("sun path didn't load"); }
 
   const P = 29.530588853, now = Date.now(), age = (((now - Date.UTC(2000, 0, 6, 18, 14)) / 864e5) % P + P) % P;
   const lit = (1 - Math.cos(2 * Math.PI * age / P)) / 2;
@@ -306,11 +308,60 @@ function showSunMoon(m) {
   $("moonLit").textContent = Math.round(lit * 100) + "% lit";
   const next = (target, label) => { let days = (target - age + P) % P; if (days < 0.5) days += P; return label + " " + new Date(now + days * 864e5).toLocaleDateString("en-US", {timeZone: TZ, weekday: "short", month: "short", day: "numeric"}); };
   $("moonNext").textContent = next(P / 2, "Full moon") + "\n" + next(0, "New moon");
+  if (window.SKY && SKY_TODAY) {   // rise and set in the order they happen today; some days the moon only does one
+    const t = SKY_TODAY, ev = [["Moonrise", t.moonrise], ["Moonset", t.moonset]].sort((x, y) => (x[1] || Infinity) - (y[1] || Infinity));
+    $("moonTimes").innerHTML = ev.map(([k, v]) => `<span>${k}</span><b>${v ? clock(v) : "none today"}</b>`).join("");
+  }
   // Lit part: a half disc on the lit side plus an ellipse that either adds to it (gibbous) or cuts into it (crescent)
   const waxing = age < P / 2, rx = 40 * Math.abs(1 - 2 * lit), side = waxing ? 1 : 0;
   if (window.HOLIDAY_MOON && window.HOLIDAY_MOON($("moonPic"), lit, waxing)) return;   // May the 4th draws the Death Star in this phase instead
   $("moonPic").innerHTML = `<circle cx="50" cy="50" r="40" fill="#2b3742"/><path fill="#e6ecf1" d="M50 10 A40 40 0 0 ${side} 50 90 A${rx} 40 0 0 ${lit > 0.5 ? side : 1 - side} 50 10Z"/>`;
   moonPhoto();
+}
+
+// The arc: x is time from dawn to dusk, y is the sun's height, with the horizon line at sunrise and sunset.
+// Below the line is twilight. The dot is the sun right now (the page reloads every 15 minutes).
+function sunArc(m, clock, span) {
+  const now = Date.now(), ymd = x => new Date(x).toLocaleDateString("en-CA", {timeZone: TZ});   // today by the clock, in the station's time zone
+  const gmt = new Date(now).toLocaleString("en-US", {timeZone: TZ, timeZoneName: "longOffset"}).match(/GMT([+-])(\d\d):(\d\d)/);
+  const off = gmt ? (gmt[1] === "-" ? -1 : 1) * (gmt[2] * 36e5 + gmt[3] * 6e4) : m.utc_offset_seconds * 1000;
+  const start = Date.parse(ymd(now) + "T00:00:00Z") - off;
+  const t = SKY_TODAY = SKY.day(start, LAT, LON), tom = SKY.day(start + 864e5, LAT, LON);
+  $("sunDawn").textContent = clock(t.dawn); $("sunRise").textContent = clock(t.sunrise);
+  $("sunSet").textContent = clock(t.sunset); $("sunDusk").textContent = clock(t.dusk);
+  $("sunHigh").textContent = `${Math.round(t.high)}° at ${clock(t.noon)}`;
+  $("sunNow").textContent = now < t.sunrise ? `Sunrise in ${span(t.sunrise - now)}` : now < t.sunset ? `${span(t.sunset - now)} of daylight left`
+    : now < t.dusk ? `Dark in ${span(t.dusk - now)}` : tom.sunrise ? `Sunrise in ${span(tom.sunrise - now)}` : "";
+
+  const s = SKY.nextSolstice(start);
+  if (s) {
+    const n = Math.round((Date.parse(ymd(s.t)) - Date.parse(ymd(now))) / 864e5), kind = s.longest ? "Longest" : "Shortest";
+    $("solstice").textContent = n === 0 ? `${kind} day of the year` : `${kind} day ${new Date(s.t).toLocaleDateString("en-US", {timeZone: TZ, weekday: "short", month: "short", day: "numeric"})} (${n} day${n === 1 ? "" : "s"})`;
+  }
+
+  const t0 = t.dawn || t.sunrise - 36e5, t1 = t.dusk || t.sunset + 36e5;
+  if (!t.sunrise || !t.sunset) { $("sunArc").innerHTML = ""; return; }
+  const H = 175, k = 160 / Math.max(t.high, 10);   // horizon at y 175, the highest point at y 15
+  const X = x => 20 + (x - t0) / (t1 - t0) * 960, Y = x => H - SKY.sunAlt(x, LAT, LON) * k;
+  const pts = Array.from({length: 81}, (_, i) => t0 + (t1 - t0) * i / 80).map(x => X(x).toFixed(1) + "," + Y(x).toFixed(1));
+  const curve = "M" + pts.join(" L"), css = getComputedStyle(document.documentElement), sun = css.getPropertyValue("--sun").trim() || "#f6c453";
+  const line = css.getPropertyValue("--line").trim(), muted = css.getPropertyValue("--muted").trim();
+  let dot = "";
+  if (now >= t0 && now <= t1) {
+    const x = X(now), y = Y(now), up = y <= H;
+    dot = `<circle cx="${x}" cy="${y}" r="34" fill="url(#sunGlow)" opacity="${up ? 1 : .5}"/><circle cx="${x}" cy="${y}" r="13" fill="${sun}" opacity="${up ? 1 : .6}"/>`;
+  }
+  const tick = x => `<line x1="${X(x)}" x2="${X(x)}" y1="${H - 8}" y2="${H + 8}" stroke="${sun}" stroke-width="3"/>`;
+  $("sunArc").innerHTML = `<defs>
+      <linearGradient id="sunFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sun}" stop-opacity=".35"/><stop offset="1" stop-color="${sun}" stop-opacity=".03"/></linearGradient>
+      <radialGradient id="sunGlow"><stop offset="0" stop-color="${sun}" stop-opacity=".55"/><stop offset="1" stop-color="${sun}" stop-opacity="0"/></radialGradient>
+      <clipPath id="above"><rect x="0" y="-50" width="1000" height="${H + 50}"/></clipPath>
+      <clipPath id="below"><rect x="0" y="${H}" width="1000" height="100"/></clipPath></defs>
+    <path d="${curve} L${X(t1)},${H} L${X(t0)},${H}Z" fill="url(#sunFill)" clip-path="url(#above)"/>
+    <path d="${curve}" fill="none" stroke="${muted}" stroke-width="3" stroke-dasharray="6 8" clip-path="url(#below)"/>
+    <path d="${curve}" fill="none" stroke="${sun}" stroke-width="4" clip-path="url(#above)"/>
+    <line x1="0" x2="1000" y1="${H}" y2="${H}" stroke="${line}" stroke-width="3"/>
+    ${tick(t.sunrise)}${tick(t.sunset)}${dot}`;
 }
 
 // A real picture of tonight's Moon: NASA's Scientific Visualization Studio renders the Moon for every hour of the year,
