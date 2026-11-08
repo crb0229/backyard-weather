@@ -496,9 +496,9 @@ async function rainbowFrames() {
   if (!nowcastLine(n, now)) return [];
   const snap = (await get(base + "/snapshot")).snapshot;
   if (!Number.isInteger(snap)) throw new Error("no Rainbow snapshot");
-  const lag = Math.ceil((now / 1000 - snap) / 600) * 600;   // the snapshot can be up to 10 minutes old; forecast steps are 10 minutes
+  const lag = Math.round((now / 1000 - snap) / 600) * 600;   // the snapshot can be up to 10 minutes old; forecast steps are 10 minutes, so frames land near 20, 40 and 60 minutes from now
   return [1200, 2400, 3600].map(s => lag + s).map(fc => ({ahead: Math.round((snap + fc - now / 1000) / 60),
-    layer: L.tileLayer(`${base}/precip/${snap}/${fc}/{z}/{x}/{y}`, {opacity: 0, maxNativeZoom: 7, attribution: "Rainbow.ai"})}));
+    layer: L.tileLayer(`${base}/precip/${snap}/${fc}/{z}/{x}/{y}?color=4`, {opacity: 0, maxNativeZoom: 7, attribution: "Rainbow.ai"})}));   // color 4: NEXRAD-style colors, matching the NOAA loop and the key
 }
 function fcSync(map) {   // forecast tiles load only while the local view is up
   const on = map.getZoom() >= 8;
