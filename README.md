@@ -1,6 +1,6 @@
 # Local Weather TV
 
-A full-screen weather dashboard built for a smart TV, showing conditions at the backyard Ambient Weather station (KMICALED82 near Caledonia, MI), live radar, a rotating set of detail panels, and a station-tuned forecast.
+A full-screen weather dashboard built for a smart TV, showing conditions at the backyard Ambient Weather station in West Michigan, live radar, a rotating set of detail panels, and a station-tuned forecast.
 
 Live TV page: https://crb0229.github.io/backyard-weather/tv.html  
 Android TV app (APK): https://crb0229.github.io/backyard-weather/tv.apk

@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("America/Detroit")
 START_DATE = "2024-01-01"            # Open-Meteo past-forecast archive starts about here
-FALLBACK_LAT, FALLBACK_LON = 42.789, -85.516   # Caledonia; replaced by station coordinates when Ambient has them
+FALLBACK_LAT, FALLBACK_LON = 42.8, -85.5   # general area; replaced by station coordinates when Ambient has them
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 VARS = ["temp", "dew", "wind"]       # variables we correct
 MIN_SAMPLES = 20                     # fewest past hours needed in a bucket before we trust it
@@ -79,11 +79,15 @@ def ambient_device():
         DEVICE = get_json("https://api.ambientweather.net/v1/devices", ambient_keys())[0]
     dev = DEVICE
     coords = (dev.get("info", {}).get("coords") or {}).get("coords") or {}
-    # Rounded to 2 decimals (about half a mile) before anything is published: the repo and page are public.
+    # Rounded to 2 decimals (about half a mile) for this script's own forecast lookups; never written to the repo.
     return dev, round(coords.get("lat", FALLBACK_LAT), 2), round(coords.get("lon", FALLBACK_LON), 2)
 
 
 def location():
+    # Forecast history stays at the same 2-decimal spot as before, so the station correction keeps lining up.
+    # Without the Ambient keys (a local run), use the published, rougher spot.
+    if "AMBIENT_API_KEY" in os.environ:
+        return ambient_device()[1:]
     meta = read_json("latest.json") or {}
     return meta.get("lat", FALLBACK_LAT), meta.get("lon", FALLBACK_LON)
 
@@ -99,7 +103,7 @@ def cmd_latest():
     dev, lat, lon = ambient_device()
     d = dev["lastData"]
     write_json("latest.json", {
-        "lat": lat, "lon": lon, "time": d.get("date"),
+        "lat": round(lat, 1), "lon": round(lon, 1), "time": d.get("date"),   # 1 decimal (about 10 km): the repo and page are public
         "temp": d.get("tempf"), "dew": d.get("dewPoint"), "feels": d.get("feelsLike"),
         "humidity": d.get("humidity"), "wind": d.get("windspeedmph"), "gust": d.get("windgustmph"),
         "winddir": d.get("winddir"), "maxgust_today": d.get("maxdailygust"),

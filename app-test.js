@@ -5,9 +5,10 @@ const LOC = (() => {   // a saved place needs a name and coordinates; anything e
     return l && (l.station === true || (typeof l.name === "string" && l.name && num(l.lat) && num(l.lon))) ? l : null; } catch (e) { return null; }
 })();
 const STATION = !LOC || !!LOC.station;
-const HOME_NAME = "Home station";   // what the header and the picker call the backyard station
+const HOME_NAME = "Home station";   // what the header calls the backyard station
+const HOME_PICK = "Demo station (West Michigan)";   // the picker button: tells a first-time visitor it is a sample station
 const TZ = (LOC && LOC.tz) || "America/Detroit";
-let LAT = (LOC && LOC.lat) || 42.79, LON = (LOC && LOC.lon) || -85.52, MAP = null;
+let LAT = (LOC && LOC.lat) || 42.8, LON = (LOC && LOC.lon) || -85.5, MAP = null;   // about 10 km precision: the page is public
 // Missing sections (the TV page leaves some out) get a throwaway element so nothing breaks
 const $ = id => document.getElementById(id) || document.createElement("div");
 const TVF = window.CHART_FONT || 10, HOURS = window.HOURS || 24;   // the TV page sets bigger text and fewer hours
@@ -136,7 +137,7 @@ function picker(first) {
 <input id="locQ" type="text" placeholder="US ZIP code, or city and state" autocomplete="postal-code">
 <button id="locGo" type="button">Search</button>
 <div class="msg" id="locMsg"></div><div id="locRes"></div>
-<button id="locStation" type="button">${HOME_NAME}</button>
+<button id="locStation" type="button">${HOME_PICK}</button>
 ${first ? "" : '<button id="locCancel" type="button">Cancel</button>'}</div>`;
   document.body.appendChild(box);
   const q = document.getElementById("locQ"), res = document.getElementById("locRes"), msg = t => document.getElementById("locMsg").textContent = t;
