@@ -2,7 +2,7 @@
 // Run: node --test tests/holiday/
 const test = require("node:test");
 const assert = require("node:assert");
-const H = require("../../holiday-test.js");
+const H = require("../../holiday.js");
 
 const day = (y, m, d, h = 12, min = 0) => new Date(y, m - 1, d, h, min);
 const id = d => (H.holidayFor(d) || {}).id || null;

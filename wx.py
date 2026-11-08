@@ -7,7 +7,7 @@ Commands (run by GitHub Actions, not by hand):
   python wx.py backfill  - pull station history and past model forecasts back to START_DATE
 
 Keys come from environment variables AMBIENT_API_KEY and AMBIENT_APP_KEY (GitHub secrets).
-Optional RAINBOW_API_KEY (GitHub secret) adds data/nowcast.json, the next 2 hours of rain or snow timing (test).
+Optional RAINBOW_API_KEY (GitHub secret) adds data/nowcast.json, the next 2 hours of rain or snow timing (TV page).
 """
 import csv, http.client, json, os, statistics, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
@@ -351,7 +351,7 @@ def daily_due():
     return now.hour >= 4 and (read_json("correction.json") or {}).get("daily_done") != now.date().isoformat()
 
 
-# ---------- nowcast (Rainbow.ai, test) ----------
+# ---------- nowcast (Rainbow.ai, TV page) ----------
 
 WET_MMH = 0.1                        # a minute counts as wet from this rate (mm/h, liquid)
 NOWCAST_MINUTES = 120                # how far ahead the summary looks
@@ -401,7 +401,7 @@ def cmd_scheduled():
     cmd_daily() if daily_due() else cmd_latest()
     try:
         cmd_nowcast()
-    except Exception as e:   # the nowcast is a test add-on; it must never block the station data
+    except Exception as e:   # the nowcast is an add-on; it must never block the station data
         print(f"Nowcast skipped: {type(e).__name__}", file=sys.stderr)
 
 

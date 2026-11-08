@@ -58,7 +58,10 @@ The correction (temperature, dew point, wind) only turns on after enough overlap
 
 - `tv.html` — full-screen TV dashboard
 - `index.html` — phone/scrolling dashboard
-- `app.js` — shared logic (radar, charts, corrections, ISS, etc.)
+- `app.js` - phone page logic (radar, charts, corrections, ISS, etc.)
+- `app-tv.js` - TV copy of app.js with NOAA nowCOAST radar, Rainbow.ai rain timing and forecast frames
+- `holiday.js`, `holiday-art.js` - TV holiday themes and their drawings and animations
+- `worker/` - Cloudflare Worker that passes Rainbow.ai forecast tiles to the TV without exposing the key
 - `wx.py` — data collector and correction builder
 - `data/` — station readings, model history, correction tables (updated by Actions)
 - `android/` — Android TV wrapper app
