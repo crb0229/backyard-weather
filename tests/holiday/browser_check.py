@@ -348,7 +348,7 @@ def blocked_storage_no_replay_on_reload(c):
 
 @case
 def dim_ends_even_if_theme_script_fails(c):
-    p = c.page(clock=dt.datetime(2026, 12, 20, 5, 59, 30), block="**/holiday-art-test.js*")
+    p = c.page(clock=dt.datetime(2026, 12, 20, 5, 59, 30), block="**/holiday-art.js*")
     assert p.evaluate("document.body.classList.contains('dim')"), "should start dimmed at 5:59"
     p.errors.clear()
     p.clock.run_for(65000)

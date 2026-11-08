@@ -95,7 +95,7 @@ body.dim{filter:brightness(.35)}
 body.freezing #nowTemp{color:var(--cold)}
 body.alerting .panel{border:2px solid var(--warn)}
 #holiday{font:600 1.1rem var(--display);margin-left:1vw}
-/* TEST: holiday themes. Colors come from holiday-test.js as inline --bg/--panel/--line/--hol-title on the root, so they win over the daytime look */
+/* TEST: holiday themes. Colors come from holiday.js as inline --bg/--panel/--line/--hol-title on the root, so they win over the daytime look */
 #holPic{display:inline-block;height:4.2rem;width:4.2rem;vertical-align:middle;margin:-1.2rem 0 -1rem 1vw}
 #holPic:empty{display:none}
 #holPic img,#holPic svg{width:100%;height:100%;object-fit:contain;display:block}
@@ -233,7 +233,7 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // TES
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" integrity="sha384-dug+JxfBvklEQdJ4AYuBBAIScUz0bVN73xpy273gcAwHjb3qI0fXmuYNaNfdyYJG" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js" integrity="sha384-e6V1JVpc+kVNTxT0gEOla7yL4c92Romsw7itPoipfzHbEjzUwPhTv6oeVDMHHzqT" crossorigin="anonymous"></script>
-<script>document.write(['app-radar-test.js', 'holiday-art-test.js', 'holiday-test.js'].map(f => '<script src="' + f + '?t=' + Date.now() + '"><\/script>').join(''));   // always the newest app.js, so an update never mixes old and new files. TEST: NOAA nowCOAST radar instead of Iowa State</script>
+<script>document.write(['app-radar-test.js', 'holiday-art.js', 'holiday.js'].map(f => '<script src="' + f + '?t=' + Date.now() + '"><\/script>').join(''));   // always the newest app.js, so an update never mixes old and new files. TEST: NOAA nowCOAST radar instead of Iowa State</script>
 <script>
 // Rotate the detail panel. The 10-day outlook is the home view: 20 seconds, the others 10.
 // Hidden pages (the Space Station page with nothing to show) are left out of the rotation and the dots.
@@ -317,7 +317,7 @@ function windMeters(s) {
   })(performance.now());
 }
 
-// Late-night dim (11 PM to 6 AM), holiday themes (holiday-test.js, the same themes as tv-test.html; add ?date=2026-12-20
+// Late-night dim (11 PM to 6 AM), holiday themes (holiday.js, the same themes as tv-test.html; add ?date=2026-12-20
 // to preview a date) and a small screen nudge every 10 minutes to protect OLED TVs from burn-in.
 (function () {
   const preview = new URLSearchParams(location.search).get("date");

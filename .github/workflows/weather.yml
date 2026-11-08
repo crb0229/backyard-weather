@@ -30,7 +30,7 @@ jobs:
         env:
           AMBIENT_API_KEY: ${{ secrets.AMBIENT_API_KEY }}
           AMBIENT_APP_KEY: ${{ secrets.AMBIENT_APP_KEY }}
-          RAINBOW_API_KEY: ${{ secrets.RAINBOW_API_KEY_PRIMARY || secrets.RAINBOW_API_KEY_SECONDARY }}   # optional: rain timing for the next 2 hours (test page); Rainbow gives two equal keys, the secondary is the spare
+          RAINBOW_API_KEY: ${{ secrets.RAINBOW_API_KEY_PRIMARY || secrets.RAINBOW_API_KEY_SECONDARY }}   # optional: rain timing for the next 2 hours (TV page); Rainbow gives two equal keys, the secondary is the spare
           JOB: ${{ github.event.inputs.job }}         # passed as data, never pasted into the command itself
           SCHEDULE: ${{ github.event.schedule }}
         run: |

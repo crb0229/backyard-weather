@@ -1,6 +1,6 @@
-# Rainbow tile worker (test)
+# Rainbow tile worker
 
-The TV test page (`tv-radar-test.html`) shows Rainbow.ai forecast frames after the radar loop. Each tile request needs the
+The TV page (`tv.html`, and the test copy `tv-radar-test.html`) shows Rainbow.ai forecast frames after the radar loop. Each tile request needs the
 Rainbow API key, and this site is public, so the key can't be in the page. This small Cloudflare Worker holds the key and
 passes tiles through. It only answers pages on `https://crb0229.github.io/`, only passes recent forecast tiles at zoom 3 to 7,
 and caches each tile at Cloudflare so every TV showing the same frame costs one Rainbow request.
