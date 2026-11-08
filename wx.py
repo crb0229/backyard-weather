@@ -7,6 +7,7 @@ Commands (run by GitHub Actions, not by hand):
   python wx.py backfill  - pull station history and past model forecasts back to START_DATE
 
 Keys come from environment variables AMBIENT_API_KEY and AMBIENT_APP_KEY (GitHub secrets).
+Optional RAINBOW_API_KEY (GitHub secret) adds data/nowcast.json, the next 2 hours of rain or snow timing (test).
 """
 import csv, http.client, json, os, statistics, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
@@ -350,8 +351,58 @@ def daily_due():
     return now.hour >= 4 and (read_json("correction.json") or {}).get("daily_done") != now.date().isoformat()
 
 
+# ---------- nowcast (Rainbow.ai, test) ----------
+
+WET_MMH = 0.1                        # a minute counts as wet from this rate (mm/h, liquid)
+NOWCAST_MINUTES = 120                # how far ahead the summary looks
+DRY_GAP = 10                         # this many dry minutes in a row ends a shower
+STRENGTH = {"snow": (1.0, 2.5)}      # light below the first rate, heavy from the second; rain and others use RAIN_STRENGTH
+RAIN_STRENGTH = (2.5, 7.6)
+
+
+def nowcast_summary(forecast, now):
+    """Next 2 hours of Rainbow's minute-by-minute forecast, cut down to when precipitation starts and stops,
+    its type and strength. Times are Unix seconds; the page turns them into "in 12 min"."""
+    mins = [f for f in forecast if now - 60 <= f["timestampBegin"] < now + NOWCAST_MINUTES * 60]
+    out = {"updated": now, "until": now + NOWCAST_MINUTES * 60, "start": None, "end": None, "type": None, "strength": None}
+    first = next((i for i, f in enumerate(mins) if (f.get("precipRate") or 0) >= WET_MMH), None)
+    if first is None:
+        return out
+    last = first
+    for i in range(first, len(mins)):
+        if (mins[i].get("precipRate") or 0) >= WET_MMH:
+            last = i
+        elif i - last >= DRY_GAP:
+            break
+    event = [f for f in mins[first:last + 1] if (f.get("precipRate") or 0) >= WET_MMH]
+    types = [str(f.get("precipType") or "rain").lower() for f in event]
+    kind = max(set(types), key=types.count)
+    peak = max(f["precipRate"] for f in event)
+    light, heavy = STRENGTH.get(kind, RAIN_STRENGTH)
+    out.update(start=mins[first]["timestampBegin"], type=kind,
+               strength="light" if peak < light else "heavy" if peak >= heavy else "moderate",
+               end=mins[last]["timestampEnd"] if last < len(mins) - DRY_GAP else None)   # None: still going at the end of the window
+    return out
+
+
+def cmd_nowcast():
+    key = os.environ.get("RAINBOW_API_KEY")
+    if not key:
+        return
+    lat, lon = location()   # the private 2-decimal spot goes to Rainbow only; nowcast.json holds no location
+    req = urllib.request.Request(f"https://api.rainbow.ai/nowcast/v1/precip/{lon}/{lat}",
+                                 headers={**UA, "Ocp-Apim-Subscription-Key": key})
+    with urllib.request.urlopen(req, timeout=30) as r:   # one try per run, so a bad run never spends extra free requests
+        data = json.load(r)
+    write_json("nowcast.json", nowcast_summary(data.get("forecast") or [], int(time.time())))
+
+
 def cmd_scheduled():
     cmd_daily() if daily_due() else cmd_latest()
+    try:
+        cmd_nowcast()
+    except Exception as e:   # the nowcast is a test add-on; it must never block the station data
+        print(f"Nowcast skipped: {type(e).__name__}", file=sys.stderr)
 
 
 def cmd_backfill():

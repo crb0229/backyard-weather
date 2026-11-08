@@ -63,12 +63,13 @@ async function main() {
     minutely_15: "precipitation"}));
   const results = await Promise.allSettled([
     get(`https://api.weather.gov/alerts/active?point=${LAT.toFixed(4)},${LON.toFixed(4)}`),
-    nwsGet("forecast"), nwsGet("forecastHourly"), nwsGet("forecastGridData"), om, obsP]);
-  const [alerts, daily, hourly, grid, model, cur] = results.map(r => r.status === "fulfilled" ? r.value : null);
+    nwsGet("forecast"), nwsGet("forecastHourly"), nwsGet("forecastGridData"), om, obsP,
+    STATION ? get("data/nowcast.json") : null]);   // TEST: Rainbow.ai rain timing, collected for the home station only
+  const [alerts, daily, hourly, grid, model, cur, nowcast] = results.map(r => r.status === "fulfilled" ? r.value : null);
   if (window.onData) try { window.onData(cur, model, alerts ? alerts.features : []); } catch (e) { note("theme didn't load"); }   // the TV page sets its theme here, before the charts read the colors
   if (alerts) showAlerts(alerts.features);
   if (daily) showDays(daily.properties.periods);
-  if (model) { showRain(model, cur); showEvenings(model); showSunMoon(model); try { showTenDay(model); } catch (e) { note("charts didn't load"); } }
+  if (model) { showRain(model, cur, nowcast); showEvenings(model); showSunMoon(model); try { showTenDay(model); } catch (e) { note("charts didn't load"); } }
   showHourly(hourly && hourly.properties.periods, model);
   showLow(daily && daily.properties.periods, model);
   if (grid) showSnow(grid.properties, model);
@@ -195,8 +196,10 @@ function showAlerts(list) {
   [...$("alerts").querySelectorAll("p")].forEach((p, i) => p.textContent = list[i].properties.headline + "\n\n" + list[i].properties.description);
 }
 
-function showRain(m, s) {
+function showRain(m, s, n) {
   const q = m.minutely_15, now = Date.now(), wet = x => x.p >= 0.01;
+  const nc = nowcastLine(n, now);   // TEST: when Rainbow sees rain or snow in the next 2 hours, its minute timing wins
+  if (nc) { $("rainCall").textContent = nc; $("rainNote").textContent = "Next 2 hours: Rainbow.ai minute-by-minute nowcast."; return; }
   let msg, note = "Timing from the 15-minute model forecast (HRRR-based in the US) for the next 6 hours.";
   const idx = q.time.findIndex(t => localMs(t) >= now - 15 * 60000);
   const win = q.time.slice(idx, idx + 24).map((t, i) => ({t, p: q.precipitation[idx + i]}));
@@ -215,6 +218,17 @@ function showRain(m, s) {
     }
   }
   $("rainCall").textContent = msg; $("rainNote").textContent = note;
+}
+// TEST: data/nowcast.json (written by wx.py every 15 minutes) to "Light snow starting in about 12 min". Older than 40 minutes,
+// or a shower that has already ended, gives nothing, and the model forecast line shows instead.
+const NC_WORDS = {mix: "rain and snow", sleet: "sleet", hail: "hail", freezing_rain: "freezing rain", "freezing rain": "freezing rain", snow: "snow"};
+function nowcastLine(n, now) {
+  if (!n || !n.start || now - n.updated * 1000 > 40 * 60000 || (n.end && n.end * 1000 <= now)) return null;
+  const at = t => new Date(t * 1000).toLocaleTimeString("en-US", {timeZone: TZ, hour: "numeric", minute: "2-digit"});
+  const until = t => { const m = Math.max(1, Math.round((t * 1000 - now) / 60000)); return m < 60 ? `in about ${m}\u00a0min` : `around ${at(t)}`; };
+  const what = (n.strength || "light").replace(/^./, c => c.toUpperCase()) + " " + (NC_WORDS[n.type] || "rain");
+  if (n.start * 1000 <= now + 60000) return n.end ? `${what} now, ending ${until(n.end)}` : `${what} now, continuing past ${at(n.until)}`;
+  return `${what} starting ${until(n.start)}` + (n.end ? `, ending around ${at(n.end)}` : "");
 }
 // Open-Meteo local time strings ("2026-11-04T19:15") to real instants and labels
 function localMs(t) { const guess = new Date(t + "Z").getTime(); const off = new Date(guess).toLocaleString("en-US", {timeZone: TZ, timeZoneName: "shortOffset"}).match(/GMT([+-]\d+)/); return guess - (off ? +off[1] : -5) * 3600000; }
