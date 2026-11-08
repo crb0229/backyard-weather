@@ -139,7 +139,7 @@ def day_theme_keeps_holiday_colors(c):
 
 @case
 def missing_picture_hidden(c):
-    p = c.page(date="2026-12-20", block="**/img/holiday/christmas-present.webp")
+    p = c.page(date="2026-12-20", block="**/img/holiday/christmas-tree.webp")
     p.wait_for_timeout(500)
     broken = p.evaluate("[...document.querySelectorAll('#holPic img')].some(i => i.offsetWidth > 0 && !(i.complete && i.naturalWidth > 0))")
     assert not broken, "broken image icon visible"

@@ -42,7 +42,7 @@
       picture: {img: "img/holiday/thanksgiving-leaves.webp"}, intro: "leaves"},
     {id: "christmas", main: true, range: y => [[D(y, 12, 1), D(y, 12, 26)]], greeting: fixed("Merry Christmas"),
       font: {family: "Mountains of Christmas", css: "Mountains+of+Christmas:wght@700"}, palette: {bg: "#121a17", panel: "#1a2420", line: "#4a2c2c", title: "#e6c27a"},
-      picture: {img: "img/holiday/christmas-present.webp"}, intro: "snow"}];
+      picture: {img: "img/holiday/christmas-tree.webp"}, intro: "snow"}];
 
   function holidayFor(d) {
     const today = new Date(d.getFullYear(), d.getMonth(), d.getDate());
