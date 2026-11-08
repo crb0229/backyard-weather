@@ -455,7 +455,7 @@ function showTenDay(m) {
     [{label: "Station wind", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderDash: [3, 3]}] : []));
 }
 
-let frames = [], fi = 0, timer = null, BASE = null;
+let frames = [], fcFrames = [], fi = 0, timer = null, BASE = null;
 function radar() {
   const map = MAP = L.map("radar", {zoomControl: false, attributionControl: true}).setView([LAT, LON], 8);
   BASE = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution: "© OpenStreetMap contributors", maxZoom: 12, className: "basemap"}).addTo(map);
@@ -467,6 +467,8 @@ function radar() {
   ncFrames().catch(() => { note("NOAA radar didn't load, showing Iowa State radar"); return iem(); }).then(list => {
     frames = list; frames.forEach(f => f.layer.addTo(map));
     step(); play();
+    rainbowFrames().then(list => { fcFrames = list; fcSync(map); map.on("zoomend", () => fcSync(map)); })
+      .catch(() => note("Rainbow forecast map didn't load"));
     if (window.RADAR_ROTATE) rotateRadar(map);
   });
   $("radarBtn").onclick = () => timer ? (clearInterval(timer), timer = null, $("radarBtn").textContent = "Play") : play();
@@ -483,6 +485,24 @@ async function ncFrames() {
   }
   return picked.map(t => ({mins: Math.round((last - t) / 60000), layer: L.tileLayer.wms(NC, {layers: NC_LAYER, format: "image/png",
     transparent: true, version: "1.3.0", time: new Date(t).toISOString(), tileSize: 512, opacity: 0, attribution: "NOAA/NWS nowCOAST"})}));
+}
+// TEST: Rainbow.ai forecast frames (about 20, 40 and 60 minutes ahead) after the radar loop. Only on the local view, and only
+// while the nowcast has rain or snow due in the next 2 hours, so tiles are fetched only when they matter (free tier: 30,000 a
+// month). Tiles come through the Cloudflare worker in worker/, which holds the key; window.RAINBOW_TILES is its address.
+async function rainbowFrames() {
+  const base = window.RAINBOW_TILES;
+  if (!base || !STATION) return [];
+  const n = await get("data/nowcast.json").catch(() => null), now = Date.now();
+  if (!nowcastLine(n, now)) return [];
+  const snap = (await get(base + "/snapshot")).snapshot;
+  if (!Number.isInteger(snap)) throw new Error("no Rainbow snapshot");
+  const lag = Math.ceil((now / 1000 - snap) / 600) * 600;   // the snapshot can be up to 10 minutes old; forecast steps are 10 minutes
+  return [1200, 2400, 3600].map(s => lag + s).map(fc => ({ahead: Math.round((snap + fc - now / 1000) / 60),
+    layer: L.tileLayer(`${base}/precip/${snap}/${fc}/{z}/{x}/{y}`, {opacity: 0, maxNativeZoom: 7, attribution: "Rainbow.ai"})}));
+}
+function fcSync(map) {   // forecast tiles load only while the local view is up
+  const on = map.getZoom() >= 8;
+  fcFrames.forEach(f => on ? f.layer.addTo(map) : map.removeLayer(f.layer));
 }
 // Active NWS warnings and watches in the location's state, drawn on the radar. Storm warnings come with their own outline;
 // winter and flood warnings cover whole counties, so those county shapes are fetched one by one (each fetched once).
@@ -531,7 +551,7 @@ function rotateRadar(map) {
       let ready;
       if (isSat) {
         clearInterval(timer); timer = null;
-        frames.forEach(f => f.layer.setOpacity(0));
+        frames.concat(fcFrames).forEach(f => f.layer.setOpacity(0));
         sat = L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch02/{z}/{x}/{y}.png?t=${Date.now()}`,
           {opacity: 0.75, attribution: "IEM GOES"});
         ready = Promise.all([loaded(sat), loaded(BASE)]);
@@ -553,10 +573,12 @@ function rotateRadar(map) {
 
 function play() { if (matchMedia("(prefers-reduced-motion: reduce)").matches) { fi = frames.length - 1; step(); return; } timer = setInterval(step, 600); $("radarBtn").textContent = "Pause"; }
 function step() {
-  frames.forEach((f, i) => f.layer.setOpacity(i === fi ? 0.7 : 0));
-  const f = frames[fi]; $("radarTime").textContent = f.mins ? `${f.mins} min ago` : "Latest";
-  $("radarProg").style.width = ((fi + 1) / frames.length * 100) + "%";   // timeline bar under the map fills as the loop plays
-  fi = (fi + 1) % frames.length;
+  const all = frames.concat(MAP && MAP.hasLayer && fcFrames.length && MAP.hasLayer(fcFrames[0].layer) ? fcFrames : []);   // TEST: forecast frames play after the latest scan
+  fi = fi % all.length;
+  frames.concat(fcFrames).forEach(f => f.layer.setOpacity(f === all[fi] ? 0.7 : 0));
+  const f = all[fi]; $("radarTime").textContent = f.ahead ? `Forecast +${f.ahead} min` : f.mins ? `${f.mins} min ago` : "Latest";
+  $("radarProg").style.width = ((fi + 1) / all.length * 100) + "%";   // timeline bar under the map fills as the loop plays
+  fi = (fi + 1) % all.length;
 }
 
 function note(msg) { const p = $("problems"); p.hidden = false; p.textContent += (p.textContent ? "; " : "Problems: ") + msg; }
