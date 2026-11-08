@@ -3,6 +3,7 @@
 // Cloudflare, so every TV showing the same frame costs one Rainbow request. Setup steps: worker/README.md.
 //   GET /snapshot                    -> {"snapshot": <unix seconds>}, the newest Rainbow radar time (cached 1 minute)
 //   GET /precip/<snap>/<ahead>/z/x/y -> 256 px PNG tile, <ahead> seconds after <snap> (cached 3 hours)
+//       optional ?color=0..9 picks Rainbow's color scheme (4 is NEXRAD style, like the NOAA radar loop)
 
 const ALLOWED = ["https://crb0229.github.io/"];   // the GitHub Pages site; add "http://127.0.0.1:" while testing locally
 const UPSTREAM = "https://api.rainbow.ai/tiles/v1";
@@ -32,9 +33,11 @@ export async function handle(request, env, ctx, cache) {
     // the whole world at every zoom on the owner's bill
     if (snap % 600 || snap < now - 3 * 3600 || snap > now + 600 || ahead % 600 || ahead > 14400 || z < 3 || z > 7 || x >= 2 ** z || y >= 2 ** z)
       return text(400, "tile out of range", site);
-    upstream = `${UPSTREAM}/precip/${snap}/${ahead}/${z}/${x}/${y}`; maxAge = 3 * 3600;
+    const color = url.searchParams.get("color");
+    if (color !== null && !/^\d$/.test(color)) return text(400, "color must be 0 to 9", site);
+    upstream = `${UPSTREAM}/precip/${snap}/${ahead}/${z}/${x}/${y}` + (color ? `?color=${color}` : ""); maxAge = 3 * 3600;
   }
-  const key = new Request(`https://cache.local${url.pathname}`);   // one cache entry per tile, whichever page asked
+  const key = new Request(`https://cache.local${url.pathname}${upstream.includes("?") ? "?" + upstream.split("?")[1] : ""}`);   // one cache entry per tile and color, whichever page asked
   const hit = cache && await cache.match(key);
   if (hit) return withCors(hit, site);
   const r = await fetch(upstream, {headers: {"Ocp-Apim-Subscription-Key": env.RAINBOW_API_KEY}});

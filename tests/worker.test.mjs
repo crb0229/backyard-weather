@@ -71,6 +71,16 @@ test("upstream errors don't pass Rainbow's text (or the key) along", async () =>
   assert.ok(!(await r.text()).includes(KEY));
 });
 
+test("color scheme 0 to 9 passes through and is cached separately; anything else is refused", async () => {
+  calls = [];
+  const cache = memCache(), p = `/precip/${SNAP}/1200/7/33/46`;
+  await handle(req(p + "?color=4"), env, ctx, cache);
+  await handle(req(p), env, ctx, cache);
+  assert.strictEqual(calls[0].url, `https://api.rainbow.ai/tiles/v1/precip/${SNAP}/1200/7/33/46?color=4`);
+  assert.strictEqual(cache.size(), 2);
+  for (const c of ["10", "dbz_u8", "4&token=x"]) assert.strictEqual((await handle(req(p + "?color=" + encodeURIComponent(c)), env, ctx, null)).status, 400, c);
+});
+
 test("missing secret says so", async () => {
   assert.strictEqual((await handle(req("/snapshot"), {}, ctx, null)).status, 500);
 });
