@@ -307,6 +307,7 @@ function showSunMoon(m) {
   $("moonNext").textContent = next(P / 2, "Full moon") + "\n" + next(0, "New moon");
   // Lit part: a half disc on the lit side plus an ellipse that either adds to it (gibbous) or cuts into it (crescent)
   const waxing = age < P / 2, rx = 40 * Math.abs(1 - 2 * lit), side = waxing ? 1 : 0;
+  if (window.HOLIDAY_MOON && window.HOLIDAY_MOON($("moonPic"), lit, waxing)) return;   // TEST: May the 4th draws the Death Star in this phase instead
   $("moonPic").innerHTML = `<circle cx="50" cy="50" r="40" fill="#2b3742"/><path fill="#e6ecf1" d="M50 10 A40 40 0 0 ${side} 50 90 A${rx} 40 0 0 ${lit > 0.5 ? side : 1 - side} 50 10Z"/>`;
   moonPhoto();
 }
