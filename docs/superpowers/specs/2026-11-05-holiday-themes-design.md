@@ -112,7 +112,7 @@ It never plays on the automatic 15-minute reload, unless that reload is the firs
 
 ### The on/off button
 
-- **Location:** "Theme: On / Off" sits in the header next to the "Caledonia, MI" button.
+- **Location:** "Theme: On / Off" sits in the header next to the "Home station" button.
 - **Remote control:** it is reached with the remote's arrow keys and pressed with OK. It needs a clearly visible focus outline.
 - **When it shows:** only during one of the seven main holidays. The six greeting-only holidays have nothing to switch off.
 - **What Off does:** removes the colors, picture and animation, and keeps the greeting text.
