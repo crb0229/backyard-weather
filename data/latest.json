@@ -1,19 +1,19 @@
 {
  "lat": 42.8,
  "lon": -85.5,
- "time": "2026-11-11T14:35:00.000Z",
- "temp": 43.2,
- "dew": 42.14,
- "feels": 43.2,
- "humidity": 96,
+ "time": "2026-11-11T15:31:00.000Z",
+ "temp": 46.6,
+ "dew": 43.53,
+ "feels": 46.6,
+ "humidity": 89,
  "wind": 0,
  "gust": 0,
- "winddir": 228,
+ "winddir": 222,
  "maxgust_today": 3.4,
- "pressure": 29.841,
+ "pressure": 29.82,
  "rain_rate": 0,
  "rain_today": 0,
  "rain_event": 0,
- "solar": 75.48,
- "uv": 0
+ "solar": 113.16,
+ "uv": 1
 }
