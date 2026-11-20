@@ -261,8 +261,27 @@
     id = requestAnimationFrame(tick);
   }
 
+  // A holiday character walks along the bottom of the screen once (Thanksgiving: the cartoon turkey), from a random side,
+  // waddling as it goes; holiday.js decides when. One small picture moved by the browser, so it is light work for a TV.
+  function walkAcross(name) {
+    if (document.getElementById("holWalk")) return;   // one at a time
+    const dir = Math.random() < 0.5 ? 1 : -1, size = Math.round(innerHeight * 0.18), dur = 13000;
+    const box = document.createElement("div"), flip = document.createElement("div"), img = new Image();
+    box.id = "holWalk";
+    Object.assign(box.style, {position: "fixed", left: "0", bottom: "0.4vh", width: size + "px", height: size + "px", pointerEvents: "none", zIndex: "1400"});
+    flip.style.transform = dir > 0 ? "" : "scaleX(-1)";   // the picture faces right; walking left, it is mirrored
+    img.alt = ""; img.src = `img/holiday/sprite-${name}.webp`;
+    Object.assign(img.style, {width: "100%", height: "100%", display: "block", transformOrigin: "50% 90%"});
+    img.onerror = () => box.remove();
+    flip.appendChild(img); box.appendChild(flip); document.body.appendChild(box);
+    const from = dir > 0 ? -size : innerWidth, to = dir > 0 ? innerWidth : -size;
+    box.animate([{transform: `translateX(${from}px)`}, {transform: `translateX(${to}px)`}], {duration: dur, easing: "linear"}).onfinish = () => box.remove();
+    img.animate([{transform: "rotate(-5deg) translateY(0)"}, {transform: "rotate(0deg) translateY(-6%)"}, {transform: "rotate(5deg) translateY(0)"}],
+      {duration: 450, iterations: Infinity, direction: "alternate", easing: "ease-in-out"});   // the waddle: tip, bob up, tip the other way
+  }
+
   window.ART = {
-    INTROS, playIntro, stopIntro,
+    INTROS, playIntro, stopIntro, walkAcross,
     drawFlag,
     drawDeathStar
   };

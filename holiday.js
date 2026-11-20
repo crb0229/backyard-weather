@@ -39,7 +39,7 @@
       picture: {img: "img/holiday/halloween-pumpkin.webp"}, intro: "bats"},
     {id: "thanksgiving", main: true, range: y => [[add(nth(y, 11, 4, 4), -3), add(nth(y, 11, 4, 4), 1)]], greeting: fixed("Happy Thanksgiving"),
       font: {family: "Kaushan Script", css: "Kaushan+Script"}, palette: {bg: "#1c1612", panel: "#261d17", line: "#5a3d24", title: "#e0a35a"},
-      picture: {img: "img/holiday/thanksgiving-turkey.webp"}, intro: "leaves"},
+      picture: {img: "img/holiday/thanksgiving-turkey.webp"}, intro: "leaves", walker: "turkey"},
     {id: "christmas", main: true, range: y => [[D(y, 12, 1), D(y, 12, 26)]], greeting: fixed("Merry Christmas"),
       font: {family: "Mountains of Christmas", css: "Mountains+of+Christmas:wght@700"}, palette: {bg: "#121a17", panel: "#1a2420", line: "#4a2c2c", title: "#e6c27a"},
       picture: {img: "img/holiday/christmas-tree.webp"}, intro: "snow"}];
@@ -187,7 +187,20 @@
     root.ART.playIntro(theme);
   }
 
-  const H = {THEMES, holidayFor, dayKey, isNight, moonPhase, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply, toggle, maybeIntro, onThemeOn};
+  // Now and then a holiday character walks across the screen (Thanksgiving: the turkey), about every half hour on average,
+  // at random: a 1-in-30 chance at each minute check, since the page reloads every 15 minutes and can't keep a longer timer.
+  // Never at night, with reduced motion, or with the theme switched off. A preview (?date=) walks once, soon after loading.
+  let walkedPreview = false;
+  function maybeWalk(theme, now, preview) {
+    if (!theme || !theme.walker || isOff(H.store, theme, now) || reducedMotion() || isNight(now)) return;
+    if (preview) {
+      if (!walkedPreview) { walkedPreview = true; setTimeout(() => root.ART.walkAcross(theme.walker), 9000); }   // after the startup animation
+      return;
+    }
+    if (Math.random() < 1 / 30) root.ART.walkAcross(theme.walker);
+  }
+
+  const H = {THEMES, holidayFor, dayKey, isNight, moonPhase, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply, toggle, maybeIntro, onThemeOn, maybeWalk};
   if (typeof window !== "undefined") {
     H.store = safeStore((() => { try { return window.localStorage; } catch (e) { return null; } })(), "local");
     H.session = safeStore((() => { try { return window.sessionStorage; } catch (e) { return null; } })(), "session");

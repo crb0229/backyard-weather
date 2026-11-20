@@ -366,6 +366,7 @@ function windMeters(s) {
       HOLIDAY.apply(theme, !HOLIDAY.isOff(HOLIDAY.store, theme, when), when);
       if (dim && !preview) ART.stopIntro();   // nothing animates during the night dim
       HOLIDAY.maybeIntro(theme, when, preview);
+      HOLIDAY.maybeWalk(theme, when, preview);   // Thanksgiving: now and then the cartoon turkey walks across the bottom
     } catch (e) {}
   }
   setInterval(check, 60000); check();   // the timer first, so one failed check cannot stop the next ones
