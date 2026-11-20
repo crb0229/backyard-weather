@@ -8,8 +8,9 @@ Commands (run by GitHub Actions, not by hand):
 
 Keys come from environment variables AMBIENT_API_KEY and AMBIENT_APP_KEY (GitHub secrets).
 Optional RAINBOW_API_KEY (GitHub secret) adds data/nowcast.json, the next 2 hours of rain or snow timing (TV page).
+Every run also saves data/forecast.json, the Open-Meteo forecast the TV page shows (see cmd_forecast).
 """
-import csv, http.client, json, os, statistics, sys, time, urllib.parse, urllib.request
+import csv, http.client, json, os, ssl, statistics, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -397,12 +398,37 @@ def cmd_nowcast():
     write_json("nowcast.json", nowcast_summary(data.get("forecast") or [], int(time.time())))
 
 
+# The TV page's forecast, saved here because Open-Meteo's free servers have been hanging for browsers since Nov 2026
+# (open-meteo/open-meteo#2329): they stall on the large opening message newer browsers send. This asks with a small one.
+# Same request the page makes, at the public 1-decimal spot from latest.json, so the page can use it unchanged.
+FORECAST = {"timezone": "America/Detroit", "forecast_days": 10,
+            "temperature_unit": "fahrenheit", "wind_speed_unit": "mph", "precipitation_unit": "inch",
+            "hourly": "temperature_2m,apparent_temperature,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,pressure_msl,precipitation_probability,precipitation,snowfall,is_day",
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,sunrise,sunset,daylight_duration",
+            "minutely_15": "precipitation"}
+
+
+def cmd_forecast():
+    meta = read_json("latest.json") or {}
+    params = {"latitude": meta.get("lat", FALLBACK_LAT), "longitude": meta.get("lon", FALLBACK_LON), **FORECAST}
+    ctx = ssl.create_default_context()
+    ctx.set_ecdh_curve("X25519")   # small opening message (no post-quantum key), which those servers answer
+    req = urllib.request.Request("https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode(params), headers=UA)
+    with urllib.request.urlopen(req, timeout=30, context=ctx) as r:
+        data = json.load(r)
+    data["fetched"] = int(time.time())   # the page falls back to asking Open-Meteo itself when this is too old
+    os.makedirs(DATA, exist_ok=True)
+    with open(path("forecast.json"), "w") as f:
+        json.dump(data, f, separators=(",", ":"))   # no spacing: it is saved every 15 minutes, so keep the repo small
+
+
 def cmd_scheduled():
     cmd_daily() if daily_due() else cmd_latest()
-    try:
-        cmd_nowcast()
-    except Exception as e:   # the nowcast is an add-on; it must never block the station data
-        print(f"Nowcast skipped: {type(e).__name__}", file=sys.stderr)
+    for name, add_on in (("Nowcast", cmd_nowcast), ("Forecast", cmd_forecast)):
+        try:
+            add_on()
+        except Exception as e:   # add-ons must never block the station data
+            print(f"{name} skipped: {type(e).__name__}", file=sys.stderr)
 
 
 def cmd_backfill():

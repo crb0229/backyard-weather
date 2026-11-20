@@ -144,7 +144,18 @@ header button:focus-visible{outline:2px solid var(--accent)}
 @keyframes sway{from{transform:rotate(calc(var(--sway,4deg) * -1))}to{transform:rotate(var(--sway,4deg))}}
 @media (prefers-reduced-motion:reduce){#windDir{transition:none}#windSway{animation:none}}
 </style>
-<script>window.CHART_FONT = Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.15);   // chart text a little larger than the page text, readable across the room
+<script>
+// Error catcher, first thing on the page and in old-style code any TV browser can run, so even a script the TV can't read
+// or download shows up in the header, with the browser version (old TV browsers are the usual cause)
+window.addEventListener("error", function (e) {
+  var p = document.getElementById("problems"), v = navigator.userAgent.match(/Chrome\/(\d+)/), src = e.target && e.target.src;
+  if (!p) return;
+  var m = src ? "couldn't load " + src.split("/").pop().split("?")[0] : (e.message || "error") + (e.filename ? " in " + e.filename.split("/").pop().split("?")[0] : "");
+  p.hidden = false;
+  p.textContent += (p.textContent ? "; " : "Problems (browser " + (v ? "Chrome " + v[1] : "unknown") + "): ") + m;
+}, true);
+</script>
+<script>window.CHART_FONT =Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.15);   // chart text a little larger than the page text, readable across the room
 window.HOURS = 9; window.RADAR_ROTATE = true;
 setTimeout(() => location.reload(), 15 * 60000);   // refresh every 15 min; set here, not in app-tv.js, so a script that failed to download can't stop the refreshes
 window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the Cloudflare worker for Rainbow forecast tiles (worker/README.md); empty turns the forecast frames off</script>

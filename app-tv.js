@@ -62,12 +62,16 @@ async function main() {
   ptP.then(pt => warnOutlines(MAP, pt.relativeLocation.properties.state)).catch(() => note("warning outlines didn't load"));
   const obsP = STATION ? Promise.resolve(latest) : nearestObs(ptP).then(o => { showNow(o); return o; }).catch(() => { $("nowAge").textContent = "No recent reading from a nearby NWS station."; return null; });
   const nwsGet = k => ptP.then(pt => get(pt[k]));   // each NWS piece loads on its own, so one failure doesn't blank the page
-  const om = get("https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
+  const omDirect = () => get("https://api.open-meteo.com/v1/forecast?" + new URLSearchParams({
     latitude: LAT, longitude: LON, timezone: TZ, forecast_days: 10,
     temperature_unit: "fahrenheit", wind_speed_unit: "mph", precipitation_unit: "inch",
     hourly: "temperature_2m,apparent_temperature,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,pressure_msl,precipitation_probability,precipitation,snowfall,is_day",
     daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,sunrise,sunset,daylight_duration",
     minutely_15: "precipitation"}));
+  // Home station: the copy the data job saves every 15 minutes (Open-Meteo's free servers hang for many browsers);
+  // ask Open-Meteo directly only when that copy is missing or more than 3 hours old
+  const om = !STATION ? omDirect() : get("data/forecast.json")
+    .then(f => { if (!(Date.now() / 1000 - f.fetched < 3 * 3600)) throw new Error("old"); return f; }).catch(omDirect);
   const results = await Promise.all([   // a failed piece becomes null, so one failure doesn't stop the rest (older TV browsers lack allSettled)
     get(`https://api.weather.gov/alerts/active?point=${LAT.toFixed(4)},${LON.toFixed(4)}`),
     nwsGet("forecast"), nwsGet("forecastHourly"), nwsGet("forecastGridData"), om, obsP,
@@ -640,5 +644,4 @@ function step() {
 }
 
 function note(msg) { const p = $("problems"); p.hidden = false; p.textContent += (p.textContent ? "; " : "Problems: ") + msg; }
-window.addEventListener("error", e => note(e.message));
 main().catch(e => { note(e.message); $("rainCall").textContent = "Could not load forecast"; });
