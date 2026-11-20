@@ -463,7 +463,13 @@ function showTenDay(m) {
     return `<div><b>${name}</b><span class="num" style="white-space:nowrap"><span class="hi">${Math.round(d.temperature_2m_max[i])}°</span> | <span class="lo">${Math.round(d.temperature_2m_min[i])}°</span></span><svg viewBox="0 0 32 32">${ICON[ic]}</svg><span>${word}</span><span class="num small">${amt}</span></div>`;
   }).join("");
 
-  const h = m.hourly, css = getComputedStyle(document.documentElement), c = n => css.getPropertyValue(n).trim();
+  let h = m.hourly;
+  if (window.CHART_FONT) {   // TV: the charts cover the next 3 days only (the boxes above keep all 10), so they read from across the room
+    const s0 = Math.max(0, h.time.findIndex(t => localMs(t) > Date.now()) - 1), part = {};
+    Object.keys(h).forEach(k => part[k] = h[k].slice(s0, s0 + 72));
+    h = part;
+  }
+  const css = getComputedStyle(document.documentElement), c = n => css.getPropertyValue(n).trim();
   const T = h.time, now = T.findIndex(t => localMs(t) > Date.now()) - 1;
   const night = {id: "night", beforeDatasetsDraw(ch) {
     const {ctx, chartArea: a, scales: {x}} = ch, w = (x.getPixelForValue(1) - x.getPixelForValue(0)) / 2;
@@ -476,7 +482,7 @@ function showTenDay(m) {
     options: {maintainAspectRatio: false, animation: false, interaction: {mode: "index", intersect: false},
       plugins: {legend: {labels: {color: c("--muted"), boxWidth: 12, boxHeight: 2, font: {size: TVF + 1}}},
         tooltip: {callbacks: {label: it => `${it.dataset.label}: ${it.raw == null ? "--" : Math.round(it.raw * 100) / 100}`, title:it => new Date(localMs(T[it[0].dataIndex])).toLocaleString("en-US", {timeZone: TZ, weekday: "short", hour: "numeric"})}}},
-      elements: {point: {radius: 0}, line: {borderWidth: 1.6, tension: .3}},
+      elements: {point: {radius: 0}, line: {borderWidth: window.CHART_FONT ? 3 : 1.6, tension: .3}},   // TV: thicker lines
       scales: {x: {grid: {display: false}, ticks: {color: c("--muted"), autoSkip: false, maxRotation: 0, font: {size: TVF},
           callback: (v, i) => T[i].endsWith("T12:00") ? new Date(T[i]).toLocaleDateString("en-US", {weekday: "short"}) : ""}},
         y: {grid: {color: c("--line")}, ticks: {color: c("--muted"), font: {size: TVF}}, ...y}, ...extra}}});
@@ -485,6 +491,14 @@ function showTenDay(m) {
   const dew = T.map((t, i) => nz(yard("dew", t, h.dew_point_2m[i]), h.dew_point_2m[i]));
   const flat = v => T.map(() => v);
 
+  if (window.CHART_FONT) {
+    // TV: the graph under the 10-day boxes is short, so just the temperature and the freezing line, on a scale that fits
+    // the temperatures (rounded out to 10s) instead of one that starts at zero and flattens the line
+    const t = h.temperature_2m.filter(v => v != null), lo = Math.floor((Math.min(32, ...t) - 2) / 10) * 10, hi = Math.ceil((Math.max(...t) + 2) / 10) * 10;
+    mk("cTemp", base({min: lo, max: hi}), [
+      {label: "Temperature °F, next 3 days", data: h.temperature_2m, borderColor: c("--bad"), borderWidth: 4},
+      {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [5, 5], borderWidth: 2}]);
+  } else
   mk("cTemp", base({}), [
     {label: "Temperature °F", data: h.temperature_2m, borderColor: c("--bad")},
     {label: "Feels like", data: h.apparent_temperature, borderColor: c("--feels")},
@@ -492,14 +506,15 @@ function showTenDay(m) {
     {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [4, 4], borderWidth: 1}]);
 
   if (window.CHART_FONT) {
-    // TV: two simple charts that read from across the room. Cloud cover is averaged over 12 hours, so it shows
-    // the cloudy and clear stretches instead of hour-to-hour noise; the rain chance line sits on top, thick and bright.
+    // TV: two simple charts for the next 3 days that read from across the room. Cloud cover is averaged over 7 hours, so it
+    // shows the cloudy and clear stretches instead of hour-to-hour noise; the rain chance line sits on top, thick and bright.
     const smooth = (v, k) => v.map((_, i) => { const w = v.slice(Math.max(0, i - k), i + k + 1).filter(x => x != null); return w.length ? w.reduce((a, b) => a + b, 0) / w.length : null; });
     mk("cSky", base({min: 0, max: 100, ticks: {color: c("--muted"), font: {size: TVF}, stepSize: 50, callback: v => v + "%"}}), [
       {label: "Chance of rain", data: h.precipitation_probability, borderColor: c("--accent"), backgroundColor: c("--accent-fill"), fill: true, borderWidth: 4, order: 1},
-      {label: "Cloud cover", data: smooth(h.cloud_cover, 6), borderColor: c("--cloud"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 1.5, tension: .4, order: 2}]);
-    // Rain and snow per day as labeled bars
-    const labels = d.time.map(t => new Date(t + "T12:00").toLocaleDateString("en-US", {weekday: "short"}));
+      {label: "Cloud cover", data: smooth(h.cloud_cover, 3), borderColor: c("--cloud"), backgroundColor: c("--cloud-fill"), fill: true, borderWidth: 2.5, tension: .4, order: 2}]);
+    // Rain and snow per day as labeled bars: today and the next 2 days
+    const days3 = a => a.slice(0, 3), rain = days3(d.precipitation_sum), snow = days3(d.snowfall_sum);
+    const labels = days3(d.time).map((t, i) => i ? new Date(t + "T12:00").toLocaleDateString("en-US", {weekday: "long"}) : "Today");
     const amounts = {id: "amounts", afterDatasetsDraw(ch) {
       const g = ch.ctx; g.save(); g.fillStyle = c("--fg"); g.font = `600 ${TVF}px ${getComputedStyle(document.body).fontFamily}`; g.textAlign = "center";
       ch.data.datasets.forEach((ds, k) => ch.getDatasetMeta(k).data.forEach((bar, i) => {
@@ -507,8 +522,8 @@ function showTenDay(m) {
       }));
       g.restore(); }};
     charts.push(new Chart($("cPrecip"), {type: "bar", plugins: [amounts],
-      data: {labels, datasets: [{label: "Rain (inches)", data: d.precipitation_sum, backgroundColor: c("--accent"), barPercentage: .7, categoryPercentage: .9}]
-        .concat(d.snowfall_sum.some(v => v >= 0.1) ? [{label: "Snow (inches)", data: d.snowfall_sum, backgroundColor: c("--cold"), barPercentage: .7, categoryPercentage: .9}] : [])},   // snow bars only when snow is forecast
+      data: {labels, datasets: [{label: "Rain (inches)", data: rain, backgroundColor: c("--accent"), barPercentage: .6, categoryPercentage: .8}]
+        .concat(snow.some(v => v >= 0.1) ? [{label: "Snow (inches)", data: snow, backgroundColor: c("--cold"), barPercentage: .6, categoryPercentage: .8}] : [])},   // snow bars only when snow is forecast
       options: {maintainAspectRatio: false, animation: false, layout: {padding: {top: TVF + 8}},
         plugins: {legend: {labels: {color: c("--muted"), boxWidth: 12, boxHeight: 8, font: {size: TVF + 1}}}, tooltip: {enabled: false}},
         scales: {x: {grid: {display: false}, ticks: {color: c("--muted"), font: {size: TVF}}},
@@ -531,10 +546,10 @@ function showTenDay(m) {
     // TV: the station's own wind is the bold line; the forecast for open ground and its gusts stay in the background
     mk("cWind", base({min: 0}), (STATION ?
       [{label: "Wind at the station", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderWidth: 4, order: 1}] : []).concat([
-      {label: STATION ? "Wind in the open" : "Wind", data: h.wind_speed_10m, borderColor: c("--accent"), borderWidth: STATION ? 1.5 : 3, order: 2,
-        pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 4, pointBackgroundColor: c("--accent"),
+      {label: STATION ? "Wind in the open" : "Wind", data: h.wind_speed_10m, borderColor: c("--accent"), borderWidth: STATION ? 2.5 : 4, order: 2,
+        pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 6, pointBackgroundColor: c("--accent"),   // direction arrows every 6 hours
         pointRotation: x => (h.wind_direction_10m[x.dataIndex] + 180) % 360},
-      {label: "Gusts", data: h.wind_gusts_10m, borderColor: c("--warn"), borderWidth: 1, borderDash: [4, 4], order: 3}]));
+      {label: "Gusts", data: h.wind_gusts_10m, borderColor: c("--warn"), borderWidth: 2, borderDash: [5, 5], order: 3}]));
   } else
   mk("cWind", base({min: 0}), [
     {label: "Wind mph (open field)", data: h.wind_speed_10m, borderColor: c("--accent"),
