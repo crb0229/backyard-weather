@@ -39,7 +39,7 @@
       picture: {img: "img/holiday/halloween-pumpkin.webp"}, intro: "bats"},
     {id: "thanksgiving", main: true, range: y => [[add(nth(y, 11, 4, 4), -3), add(nth(y, 11, 4, 4), 1)]], greeting: fixed("Happy Thanksgiving"),
       font: {family: "Kaushan Script", css: "Kaushan+Script"}, palette: {bg: "#1c1612", panel: "#261d17", line: "#5a3d24", title: "#e0a35a"},
-      picture: {img: "img/holiday/thanksgiving-leaves.webp"}, intro: "leaves"},
+      picture: {img: "img/holiday/thanksgiving-turkey.webp"}, intro: "leaves"},
     {id: "christmas", main: true, range: y => [[D(y, 12, 1), D(y, 12, 26)]], greeting: fixed("Merry Christmas"),
       font: {family: "Mountains of Christmas", css: "Mountains+of+Christmas:wght@700"}, palette: {bg: "#121a17", panel: "#1a2420", line: "#4a2c2c", title: "#e6c27a"},
       picture: {img: "img/holiday/christmas-tree.webp"}, intro: "snow"}];
