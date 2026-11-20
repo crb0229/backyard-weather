@@ -80,7 +80,10 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .tenday div{justify-content:space-evenly}
 .tenday .num:first-of-type span{font-size:1.4rem}
 .tenday svg{width:6vh;height:6vh}
-.tenday div>span:not(.num){font-size:1rem;line-height:1.1}   /* the weather word stays at the old size so "Cloudy" fits a box */
+.tenday div>span:not(.num){font-size:.95rem;line-height:1.1}   /* the weather word: room at the edges for "Cloudy" */
+.tenday div>b{font-size:1.12rem;font-weight:500}   /* day and date in lighter text, so "11/20" has room on both sides */
+.tenday .num{font-weight:500}   /* highs, lows and amounts lighter too */
+.tenday{gap:.3vw}   /* narrower gaps between boxes, so each box is a little wider */
 .hi{color:var(--bad)} .lo{color:var(--cold)}
 .eve{display:flex;gap:.6vw;flex:1;min-height:0;max-height:16vh}   /* the cards take the room left under the hourly table */
 .eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:1.25rem;display:flex;flex-direction:column;justify-content:center}
