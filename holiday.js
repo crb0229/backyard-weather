@@ -188,19 +188,25 @@
     root.ART.playIntro(theme);
   }
 
-  // Now and then during a holiday: a character walks across the screen (Thanksgiving: the turkey), and for holidays marked
-  // "repeat" the startup animation plays again (Thanksgiving: falling leaves). Each about every half hour on average, at
-  // random: a 1-in-30 chance at each minute check, since the page reloads every 15 minutes and can't keep a longer timer.
+  // Every 5 minutes during a holiday something happens, alternating: on the :00, :10, :20... the startup animation plays
+  // again (holidays marked "repeat"; Thanksgiving: falling leaves), and on the :05, :15, :25... a character walks across
+  // the screen (Thanksgiving: the turkey). It follows the clock, not a timer, since the page reloads every 15 minutes; the
+  // first check after loading only notes the time, so nothing doubles up with the startup animation.
   // Never at night, with reduced motion, or with the theme switched off. A preview (?date=) walks once, soon after loading.
-  let walkedPreview = false;
+  let walkedPreview = false, lastSlot = null;
   function maybeWalk(theme, now, preview) {
     if (!theme || !theme.main || isOff(H.store, theme, now) || reducedMotion() || isNight(now)) return;
     if (preview) {
       if (theme.walker && !walkedPreview) { walkedPreview = true; setTimeout(() => root.ART.walkAcross(theme.walker), 9000); }   // after the startup animation
       return;
     }
-    if (theme.walker && Math.random() < 1 / 30) root.ART.walkAcross(theme.walker);
-    else if (theme.repeat && Math.random() < 1 / 30) root.ART.playIntro(theme);
+    const slot = Math.floor((now.getHours() * 60 + now.getMinutes()) / 5);   // which 5-minute stretch of the day
+    if (slot === lastSlot) return;
+    const first = lastSlot === null;
+    lastSlot = slot;
+    if (first) return;
+    if (slot % 2 && theme.walker) root.ART.walkAcross(theme.walker);
+    else if (!(slot % 2) && theme.repeat) root.ART.playIntro(theme);
   }
 
   const H = {THEMES, holidayFor, dayKey, isNight, moonPhase, safeStore, isOff, setOff, shouldPlayIntro, markPlayed, apply, toggle, maybeIntro, onThemeOn, maybeWalk};
