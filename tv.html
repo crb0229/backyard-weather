@@ -60,6 +60,13 @@ body.stale.veryStale #nowAge{color:var(--warn)}   /* orange only past an hour; 3
 .dots span{display:inline-block;width:.8vh;height:.8vh;border-radius:50%;background:var(--line);margin-left:.5vh}
 .dots span.on{background:var(--accent)}
 .chart{position:relative;flex:1;min-height:0}
+/* Alert page: the full NWS text in the page font, as large as fits (app-tv.js sizes it) */
+.alertText{flex:1;min-height:0;overflow:hidden;line-height:1.4}
+.alertText h3{font:600 1.15em var(--display);color:var(--warn);margin:0 0 .35em}
+.alertText h3 span{color:var(--muted);font-weight:500}
+.alertText p{margin:0 0 .55em}
+.alertText p:last-child{margin-bottom:0}
+.alertText b{font-weight:600;color:var(--warn)}
 table{border-collapse:collapse;font-size:1.05rem;width:100%}
 th,td{padding:.45vh .3vw;text-align:center;white-space:nowrap}
 th{font-weight:500;color:var(--muted);text-align:left}
@@ -207,6 +214,10 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
     </section>
 
     <section class="panel rotor" id="rotor" style="padding:0">
+      <div class="slide" id="alertSlide" hidden>   <!-- pattern for the alert pages: app-tv.js adds one copy per NWS alert in effect, first in the rotation -->
+        <div class="slidehead"><h2>Weather alert</h2><span class="dots"></span></div>
+        <div class="alertText"></div>
+      </div>
       <div class="slide on">
         <div class="slidehead"><h2>10-day outlook</h2><span class="dots"></span></div>
         <div class="tenday" id="tenday"></div>
@@ -249,19 +260,22 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
 <script>document.write(['sky.js', 'app-tv.js', 'holiday-art.js', 'holiday.js'].map(f => '<script src="' + f + '?t=' + Date.now() + '"><\/script>').join(''));   // always the newest app.js, so an update never mixes old and new files</script>
 <script>if (typeof TZ === "undefined") setTimeout(() => location.reload(), 60000);   // app-tv.js didn't download (network blip): try again in a minute</script>
 <script>
-// Rotate the detail panel. The 10-day outlook is the home view: 20 seconds, the others 10.
-// Hidden pages are left out of the rotation and the dots.
+// Rotate the detail panel. The 10-day outlook is the home view and alert pages need reading time: 20 seconds; the others 10.
+// Hidden pages are left out of the rotation and the dots. Pages are looked up each turn, since alert pages come and go.
 (function () {
-  const slides = Array.from(document.querySelectorAll("#rotor .slide"));
+  const all = () => Array.from(document.querySelectorAll("#rotor .slide")), home = document.querySelector("#rotor .slide.on");
   let n = 0;
   function show(list) {
-    slides.forEach(s => s.classList.toggle("on", s === list[n]));
+    const cur = list[n];
+    if (cur.classList.contains("alertCopy") && typeof fitAlert === "function") fitAlert(cur);
+    all().forEach(s => s.classList.toggle("on", s === cur));
     list.forEach(s => { s.querySelector(".dots").innerHTML = list.map((_, j) => `<span class="${j === n ? "on" : ""}"></span>`).join(""); });
   }
   function next() {
-    const list = slides.filter(s => !s.hidden);
+    const list = all().filter(s => !s.hidden);
     n = n % list.length; show(list);
-    setTimeout(() => { n = (n + 1) % slides.filter(s => !s.hidden).length; next(); }, n === 0 ? 20000 : 10000);
+    const long = list[n] === home || list[n].classList.contains("alertCopy");
+    setTimeout(() => { n = (n + 1) % all().filter(s => !s.hidden).length; next(); }, long ? 20000 : 10000);
   }
   next();
 })();

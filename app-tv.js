@@ -202,8 +202,35 @@ ${first ? "" : '<button id="locCancel" type="button">Cancel</button>'}</div>`;
 }
 
 function showAlerts(list) {
-  $("alerts").innerHTML = list.map(a => `<details class="alert"><summary>${esc(a.properties.event)}: until ${new Date(a.properties.ends || a.properties.expires).toLocaleString("en-US", {timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit"})}</summary><p></p></details>`).join("");
+  const until = a => new Date(a.properties.ends || a.properties.expires).toLocaleString("en-US", {timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit"});
+  $("alerts").innerHTML = list.map(a => `<details class="alert"><summary>${esc(a.properties.event)}: until ${until(a)}</summary><p></p></details>`).join("");
   [...$("alerts").querySelectorAll("p")].forEach((p, i) => p.textContent = list[i].properties.headline + "\n\n" + list[i].properties.description);
+  // TV: one page per alert in the rotation (up to 3) with the full text, since a remote can't open the red bar. NWS text has
+  // hard line breaks every 70 or so characters; those are joined back into paragraphs, and "* WHAT..." becomes "What:".
+  const pattern = document.getElementById("alertSlide");
+  if (!pattern) return;
+  document.querySelectorAll(".alertCopy").forEach(s => s.remove());
+  const label = w => w.charAt(0) + w.slice(1).toLowerCase();
+  const paras = s => (s || "").split(/\n\s*\n/).map(p => p.replace(/\s*\n\s*/g, " ").trim()).filter(Boolean).map(p => {
+    const m = p.match(/^\* ?([A-Z][A-Z ]*)\.\.\.\s*(.*)$/);
+    return m ? `<p><b>${esc(label(m[1]))}:</b> ${esc(m[2])}</p>` : `<p>${esc(p)}</p>`;
+  }).join("");
+  const shown = list.slice(0, 3);
+  shown.forEach((a, i) => {
+    const page = pattern.cloneNode(true);
+    page.removeAttribute("id"); page.classList.add("alertCopy"); page.hidden = false;
+    page.querySelector("h2").textContent = shown.length > 1 ? `Weather alert ${i + 1} of ${shown.length}` : "Weather alert";
+    page.querySelector(".alertText").innerHTML = `<h3>${esc(a.properties.event)} <span>until ${until(a)}</span></h3>` + paras(a.properties.description) + paras(a.properties.instruction);
+    pattern.before(page);
+    fitAlert(page);
+  });
+}
+// Alert text as large as fits: big for reading across the room, shrinking only as far as a long warning needs.
+// The rotation (tv.html) calls this again each time the page comes up, because the panel's size settles as the page fills in.
+function fitAlert(page) {
+  const box = page.querySelector(".alertText");
+  let size = 1.6;
+  do { box.style.fontSize = size + "rem"; size -= 0.05; } while (box.scrollHeight > box.clientHeight && size > 1);
 }
 
 function showRain(m, s, n) {
