@@ -24,7 +24,7 @@
     // Christmas: real snowflakes drift down slowly, swaying and turning
     snow(g, w, h, t, st) {
       const u = h / 1080;
-      st.f = st.f || Array.from({length: 45}, () => ({x: rnd(0, w), y: rnd(-0.7 * h, 0), s: rnd(16, 40) * u, v: rnd(0.07, 0.13) * h,
+      st.f = st.f || Array.from({length: 100}, () => ({x: rnd(0, w), y: rnd(-1.9 * h, -0.05 * h), s: rnd(16, 40) * u, v: rnd(0.07, 0.13) * h,
         sw: rnd(10, 30) * u, fq: rnd(0.4, 0.9), ph: rnd(0, 6.3), r: rnd(-0.4, 0.4)}));
       const img = sprite("snowflake");
       if (img === WAIT) return;   // the snowflake picture is still loading
@@ -132,6 +132,7 @@
     }
   };
   INTROS.bunny.dur = 3.6;
+  INTROS.snow.dur = 18;     // Christmas snow lasts as long as the leaves
   INTROS.leaves.dur = 18;   // Thanksgiving leaves fall 10 seconds longer than the usual 8
   INTROS.lightspeed.dur = 3.2;
   const PIC_CLASS = {bats: "hol-glow", bunny: "hol-hop"};   // the header picture's own part of some animations
