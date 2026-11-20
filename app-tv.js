@@ -492,11 +492,11 @@ function showTenDay(m) {
   const flat = v => T.map(() => v);
 
   if (window.CHART_FONT) {
-    // TV: the graph under the 10-day boxes is short, so just the temperature and the freezing line, on a scale that fits
-    // the temperatures (rounded out to 10s) instead of one that starts at zero and flattens the line
+    // TV: its own page; just the temperature and the freezing line, on a scale that fits the temperatures (rounded out
+    // to 10s) instead of one that starts at zero and flattens the line
     const t = h.temperature_2m.filter(v => v != null), lo = Math.floor((Math.min(32, ...t) - 2) / 10) * 10, hi = Math.ceil((Math.max(...t) + 2) / 10) * 10;
     mk("cTemp", base({min: lo, max: hi}), [
-      {label: "Temperature °F, next 3 days", data: h.temperature_2m, borderColor: c("--bad"), borderWidth: 4},
+      {label: "Temperature °F", data: h.temperature_2m, borderColor: c("--bad"), borderWidth: 4},
       {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [5, 5], borderWidth: 2}]);
   } else
   mk("cTemp", base({}), [

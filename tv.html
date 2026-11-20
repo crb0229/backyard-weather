@@ -75,6 +75,11 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .tenday .num{font-family:var(--display);font-weight:600}   /* narrow digits fit the columns */
 .tenday div{border:1px solid var(--line);border-radius:6px;padding:.5vh 2px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .tenday svg{width:3.4vh;height:3.4vh}
+/* The 10-day boxes have the page to themselves: they fill its height, with bigger text and icons */
+.tenday{flex:1;min-height:0;font-size:1.2rem;gap:.5vw}
+.tenday div{justify-content:space-evenly}
+.tenday .num:first-of-type span{font-size:1.4rem}
+.tenday svg{width:6vh;height:6vh}
 .hi{color:var(--bad)} .lo{color:var(--cold)}
 .eve{display:flex;gap:.6vw;flex:1;min-height:0;max-height:16vh}   /* the cards take the room left under the hourly table */
 .eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:1.25rem;display:flex;flex-direction:column;justify-content:center}
@@ -97,7 +102,8 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .sunmoon .kv b,.sunmoon .kv span{white-space:nowrap}
 .sunmoon .small{font-size:1.1rem;margin:.6vh 0 0}
 .moon{display:flex;align-items:center;gap:1.2vw}
-.moon .moonPhoto{width:12vh;height:12vh;flex:none;mix-blend-mode:screen}   /* black sky in the photo blends into the panel */
+.moon .moonPhoto{width:12vh;height:12vh;flex:none;mix-blend-mode:screen;   /* black sky in the photo blends into the panel */
+  -webkit-mask-image:radial-gradient(circle closest-side,#000 94%,transparent 97%);mask-image:radial-gradient(circle closest-side,#000 94%,transparent 97%)}   /* and is cut to a circle just outside the Moon's edge, so no black square shows while the page fades in (the blend stops working mid-fade) */
 .moon svg{width:11vh;height:11vh;flex:none}
 .moon .callout{font-size:1.5rem;white-space:nowrap}
 .moon .kv{font-size:1.2rem;gap:.3vh 1vw;margin-top:.5vh}
@@ -221,6 +227,9 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
       <div class="slide on">
         <div class="slidehead"><h2>10-day outlook</h2><span class="dots"></span></div>
         <div class="tenday" id="tenday"></div>
+      </div>
+      <div class="slide">
+        <div class="slidehead"><h2>Temperature, next 3 days</h2><span class="dots"></span></div>
         <div class="chart"><canvas id="cTemp"></canvas></div>
       </div>
       <div class="slide">
