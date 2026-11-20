@@ -131,6 +131,7 @@
     }
   };
   INTROS.bunny.dur = 3.6;
+  INTROS.leaves.dur = 10;   // Thanksgiving leaves fall a little longer than the usual 8 seconds
   INTROS.lightspeed.dur = 3.2;
   const PIC_CLASS = {bats: "hol-glow", bunny: "hol-hop"};   // the header picture's own part of some animations
 
