@@ -289,8 +289,8 @@
   }
   // Walkers made of a few pictures played in turn instead of code-drawn legs (Santa: four poses of one step, looped).
   // stride = how far he travels during one trip through the pictures, in the picture's 784-pixel units (about the gap between
-  // his boots at the widest), so the step rate matches the walking speed. Picture order: lands, down, up, reaching.
-  const FRAMES = {santa: {n: 4, stride: 340, size: 0.2, dur: 13}};
+  // his boots at the widest), so the step rate matches the walking speed. Picture order: contact, in-between, down, in-between, passing, in-between, up, in-between (one full stride, two steps).
+  const FRAMES = {santa: {n: 8, stride: 560, size: 0.22, dur: 14}};
   function walkAcross(name) {
     if (document.getElementById("holWalk")) return;   // one at a time
     const fr = FRAMES[name];
@@ -315,9 +315,8 @@
       g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
       const s = cv.width / 784;
       g.setTransform(dir * s, 0, 0, s, dir > 0 ? 0 : cv.width, 0);   // mirrored when walking left
-      if (fr) {   // lowest in the "down" picture, highest in the "up" one
-        const p = (t / cycle) % 1, bob = 10 * Math.cos((p - 0.375) * 2 * Math.PI);
-        g.drawImage(pics[Math.floor(p * fr.n)], 0, bob, 784, 784);
+      if (fr) {   // the pictures already bob, with the boots on one line, so just play them in order
+        g.drawImage(pics[Math.floor(((t / cycle) % 1) * fr.n)], 0, 0, 784, 784);
         return;
       }
       // Body lowest just after each foot lands (feet land at p = 0 and 0.5) and highest as the free leg swings past (0.3, 0.8)
