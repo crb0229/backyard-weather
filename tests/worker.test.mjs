@@ -2,7 +2,7 @@
 // Run: node --test tests/worker.test.mjs
 import test from "node:test";
 import assert from "node:assert";
-import {handle} from "../worker/rainbow-tiles.mjs";
+import {handle, startWeatherJob} from "../worker/rainbow-tiles.mjs";
 
 const KEY = "test-key-123", env = {RAINBOW_API_KEY: KEY};
 const SNAP = Math.floor(Date.now() / 1000 / 600) * 600, PAGE = "https://crb0229.github.io/backyard-weather/tv-radar-test.html";
@@ -83,4 +83,19 @@ test("color scheme 0 to 9 passes through and is cached separately; anything else
 
 test("missing secret says so", async () => {
   assert.strictEqual((await handle(req("/snapshot"), {}, ctx, null)).status, 500);
+});
+
+test("timer starts the weather job as a latest reading, with the token in a header", async () => {
+  const real = globalThis.fetch, sent = [];
+  globalThis.fetch = async (url, opts) => { sent.push({url, opts}); return new Response(null, {status: 204}); };
+  try {
+    await startWeatherJob({GITHUB_TOKEN: "gh-token"});
+    assert.strictEqual(sent[0].url, "https://api.github.com/repos/crb0229/backyard-weather/actions/workflows/weather.yml/dispatches");
+    assert.strictEqual(sent[0].opts.method, "POST");
+    assert.strictEqual(sent[0].opts.headers.Authorization, "Bearer gh-token");
+    assert.deepStrictEqual(JSON.parse(sent[0].opts.body), {ref: "main", inputs: {job: "latest"}});
+    globalThis.fetch = async () => new Response("Bad credentials", {status: 401});
+    await assert.rejects(startWeatherJob({GITHUB_TOKEN: "gh-token"}), /GitHub answered 401/);
+    await assert.rejects(startWeatherJob({}), /GITHUB_TOKEN/);
+  } finally { globalThis.fetch = real; }
 });

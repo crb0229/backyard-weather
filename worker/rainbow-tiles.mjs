@@ -4,16 +4,30 @@
 //   GET /snapshot                    -> {"snapshot": <unix seconds>}, the newest Rainbow radar time (cached 1 minute)
 //   GET /precip/<snap>/<ahead>/z/x/y -> 256 px PNG tile, <ahead> seconds after <snap> (cached 3 hours)
 //       optional ?color=0..9 picks Rainbow's color scheme (4 is NEXRAD style, like the NOAA radar loop)
+// Timer (Cron Trigger, every 15 minutes): starts the "weather data" job on GitHub, because GitHub's own 15-minute schedule
+// gets skipped for hours at a time. Needs the secret GITHUB_TOKEN (allowed to run Actions on this one repo only).
 
 const ALLOWED = ["https://crb0229.github.io/"];   // the GitHub Pages site; add "http://127.0.0.1:" while testing locally
 const UPSTREAM = "https://api.rainbow.ai/tiles/v1";
 const TILE = /^\/precip\/(\d{10})\/(\d{1,5})\/(\d{1,2})\/(\d{1,4})\/(\d{1,4})$/;
+const DISPATCH = "https://api.github.com/repos/crb0229/backyard-weather/actions/workflows/weather.yml/dispatches";
 
 export default {
   async fetch(request, env, ctx) {
     return handle(request, env, ctx, typeof caches === "undefined" ? null : caches.default);
   },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(startWeatherJob(env));
+  },
 };
+
+// Asks GitHub to run the station reading now. The job input must be "latest": left out, the workflow would default to a backfill.
+export async function startWeatherJob(env) {
+  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN secret is not set");
+  const r = await fetch(DISPATCH, {method: "POST", body: JSON.stringify({ref: "main", inputs: {job: "latest"}}),
+    headers: {Authorization: `Bearer ${env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "backyard-weather-worker"}});
+  if (r.status !== 204) throw new Error(`GitHub answered ${r.status}`);   // shows as a failed run in the worker's logs
+}
 
 export async function handle(request, env, ctx, cache) {
   const from = request.headers.get("Origin") || request.headers.get("Referer") || "";

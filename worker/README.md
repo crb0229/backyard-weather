@@ -18,6 +18,24 @@ and caches each tile at Cloudflare so every TV showing the same frame costs one 
 Quick check: opening `https://rainbow-tiles.YOURNAME.workers.dev/snapshot` straight in a browser should say `not allowed`.
 That is expected; only the TV page may use it.
 
+## 15-minute station timer
+
+GitHub's own 15-minute schedule for the "weather data" job gets skipped for hours at a time, so the worker also runs on a
+Cloudflare timer and asks GitHub to start the job every 15 minutes. GitHub runs those requests right away. (GitHub's
+schedule stays on as a backup; an extra run just finds nothing new.)
+
+1. Make a GitHub token: https://github.com/settings/personal-access-tokens/new (fine-grained token).
+   Name `weather timer`, expiration as long as offered, **Only select repositories**: `backyard-weather`,
+   **Permissions > Repository > Actions: Read and write**. Nothing else. Generate and copy it.
+2. In the `rainbow-tiles` worker: **Settings > Variables and Secrets > Add**, type **Secret**, name `GITHUB_TOKEN`,
+   paste the token, save and deploy.
+3. **Edit code**, paste the current `rainbow-tiles.mjs`, **Deploy**.
+4. **Settings > Trigger events > Add > Cron Triggers**: `*/15 * * * *`, add.
+
+Check: within 15 minutes, https://github.com/crb0229/backyard-weather/actions shows a "weather data" run marked
+`workflow_dispatch`. If runs stop, the worker's **Logs** say why (an expired token shows as `GitHub answered 401`):
+make a new token and replace the secret.
+
 ## Cost
 
 The page asks for forecast tiles only on the local view, and only while the nowcast has rain or snow due in the next
