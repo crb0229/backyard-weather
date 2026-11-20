@@ -273,7 +273,7 @@
     turkey: {hips: [[300, 572], [505, 566]], ground: 702, stride: 120, stance: 0.6, thigh: 70, shin: 72, rise: 12, knee: 1,
       fill: ["#d9861a", "#f6a523"], line: "#3a1d07"},   // far leg a shade darker
     // Santa: red trousers and black boots under the coat hem; the knee bends forward
-    santa: {size: 0.22, dur: 14, bob: 5, hips: [[372, 548], [446, 548]], ground: 740, stride: 190, stance: 0.58, thigh: 100, shin: 100, rise: 34, knee: -1, boot: true,
+    santa: {size: 0.22, dur: 20, bob: 5, hips: [[372, 548], [446, 548]], ground: 740, stride: 190, stance: 0.58, thigh: 100, shin: 100, rise: 34, knee: -1, boot: true,
       fill: ["#b5121a", "#e0212a"], line: "#6b0c12"}
   };
   function drawLeg(g, L, hx, hy, p, k) {
