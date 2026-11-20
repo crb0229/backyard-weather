@@ -545,12 +545,32 @@ function showTenDay(m) {
   }
 
   if (window.CHART_FONT) {
-    // TV: the station's own wind is the bold line; the forecast for open ground and its gusts stay in the background
-    mk("cWind", base({min: 0}), (STATION ?
+    // TV: the station's own wind is the bold line; the forecast for open ground and its gusts stay in the background.
+    // Every 6 hours: an arrow on the line pointing where the wind is heading (like the compass in the now panel), and
+    // above it, along the top, where the wind comes from ("SW"), which is how forecasts say it.
+    const arrow = (() => {   // drawn once, pointing north; each point turns it
+      const s = Math.round(TVF * 2.4), m = s / 2, cv = document.createElement("canvas"), g = cv.getContext("2d");
+      cv.width = cv.height = s;
+      g.beginPath(); g.moveTo(m, s * 0.06); g.lineTo(m + s * 0.3, s * 0.46); g.lineTo(m + s * 0.1, s * 0.46); g.lineTo(m + s * 0.1, s * 0.94);
+      g.lineTo(m - s * 0.1, s * 0.94); g.lineTo(m - s * 0.1, s * 0.46); g.lineTo(m - s * 0.3, s * 0.46); g.closePath();
+      g.lineJoin = "round"; g.lineWidth = Math.max(2, s * 0.08); g.strokeStyle = c("--bg"); g.stroke();   // dark edge so it stands out on the lines
+      g.fillStyle = c("--accent"); g.fill();
+      return cv;
+    })();
+    const dirs = {id: "dirs", afterDatasetsDraw(ch) {
+      const {ctx, chartArea: a, scales: {x}} = ch;
+      ctx.save(); ctx.fillStyle = c("--fg"); ctx.font = `600 ${TVF}px ${getComputedStyle(document.body).fontFamily}`; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      T.forEach((_, i) => { if (!(i % 6) && h.wind_direction_10m[i] != null) ctx.fillText(compass(h.wind_direction_10m[i]), x.getPixelForValue(i), a.top - 3); });
+      ctx.restore(); }};
+    const wcfg = base({min: 0});
+    wcfg.plugins = [night, dirs];
+    wcfg.options.layout = {padding: {top: TVF + 6}};   // room for the direction letters above the chart
+    wcfg.options.plugins.legend.position = "bottom";   // so the legend doesn't sit on the letters
+    mk("cWind", wcfg, (STATION ?
       [{label: "Wind at the station", data: T.map((t, i) => yard("wind", t, h.wind_speed_10m[i])), borderColor: c("--yard"), borderWidth: 4, order: 1}] : []).concat([
       {label: STATION ? "Wind in the open" : "Wind", data: h.wind_speed_10m, borderColor: c("--accent"), borderWidth: STATION ? 2.5 : 4, order: 2,
-        pointStyle: "triangle", pointRadius: x => x.dataIndex % 6 ? 0 : 6, pointBackgroundColor: c("--accent"),   // direction arrows every 6 hours
-        pointRotation: x => (h.wind_direction_10m[x.dataIndex] + 180) % 360},
+        pointStyle: arrow, pointRadius: x => x.dataIndex % 6 ? 0 : arrow.width / 2,
+        pointRotation: x => (h.wind_direction_10m[x.dataIndex] + 180) % 360},   // where the wind is heading
       {label: "Gusts", data: h.wind_gusts_10m, borderColor: c("--warn"), borderWidth: 2, borderDash: [5, 5], order: 3}]));
   } else
   mk("cWind", base({min: 0}), [
