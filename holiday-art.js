@@ -305,7 +305,8 @@
       if (frame++ % 2) return;   // about 30 frames a second, like the other animations
       cv.style.transform = `translateX(${(from + dir * travel * t / dur).toFixed(1)}px)`;
       if (!(body.complete && body.naturalWidth)) return;   // body picture still loading
-      const p = t / cycle, bob = -7 * Math.cos(p * 4 * Math.PI);   // body rises as each leg passes under it
+      // Body lowest just after each foot lands (feet land at p = 0 and 0.5) and highest as the free leg swings past (0.3, 0.8)
+      const p = t / cycle, bob = -7 * Math.cos((p - 0.3) * 4 * Math.PI);
       g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
       const s = cv.width / 784;
       g.setTransform(dir * s, 0, 0, s, dir > 0 ? 0 : cv.width, 0);   // mirrored when walking left
