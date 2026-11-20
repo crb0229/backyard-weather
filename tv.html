@@ -271,9 +271,11 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
     all().forEach(s => s.classList.toggle("on", s === cur));
     list.forEach(s => { s.querySelector(".dots").innerHTML = list.map((_, j) => `<span class="${j === n ? "on" : ""}"></span>`).join(""); });
   }
+  const seen = new WeakSet();   // alert pages already shown since this page load
   function next() {
-    const list = all().filter(s => !s.hidden);
-    n = n % list.length; show(list);
+    const list = all().filter(s => !s.hidden), fresh = list.findIndex(s => s.classList.contains("alertCopy") && !seen.has(s));
+    if (fresh >= 0) n = fresh;   // a new alert goes next instead of waiting a full lap
+    n = n % list.length; show(list); seen.add(list[n]);
     const long = list[n] === home || list[n].classList.contains("alertCopy");
     setTimeout(() => { n = (n + 1) % all().filter(s => !s.hidden).length; next(); }, long ? 20000 : 10000);
   }
