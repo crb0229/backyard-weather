@@ -261,23 +261,60 @@
     id = requestAnimationFrame(tick);
   }
 
-  // A holiday character walks along the bottom of the screen once (Thanksgiving: the cartoon turkey), from a random side,
-  // waddling as it goes; holiday.js decides when. One small picture moved by the browser, so it is light work for a TV.
+  // A holiday character walks along the bottom of the screen once (Thanksgiving: the cartoon turkey), from a random side;
+  // holiday.js decides when. The body is one picture with its legs cut off (sprite-<name>-body); the legs are drawn here
+  // and really step: each foot plants and slides back while the other lifts in an arc and swings forward, toes curling.
+  // The step rate is matched to the walking speed so a planted foot doesn't skate. Positions are in the picture's own
+  // 784-pixel units; the picture faces right and is mirrored when walking left.
+  const LEG = {hips: [[300, 572], [505, 566]], ground: 702, stride: 120, stance: 0.6, thigh: 70, shin: 72,
+    fill: ["#d9861a", "#f6a523"], line: "#3a1d07"};   // far leg a shade darker
+  function drawLeg(g, hx, hy, p, k) {
+    const L = LEG, half = L.stride / 2;
+    let fx, fy, curl;
+    if (p < L.stance) { const q = p / L.stance; fx = hx + half - q * L.stride; fy = L.ground; curl = 0; }            // planted, sliding back
+    else { const q = (p - L.stance) / (1 - L.stance); fx = hx - half + q * L.stride; fy = L.ground - Math.sin(q * Math.PI) * 42; curl = Math.sin(q * Math.PI); }   // lifted, swinging forward
+    const ax = fx, ay = fy - 12, dx = ax - hx, dy = ay - hy, d = Math.min(L.thigh + L.shin - 1, Math.hypot(dx, dy));
+    const bend = Math.acos((L.thigh * L.thigh + d * d - L.shin * L.shin) / (2 * L.thigh * d)), a = Math.atan2(dy, dx) + bend;   // joint bends backward, like a bird's
+    const kx = hx + Math.cos(a) * L.thigh, ky = hy + Math.sin(a) * L.thigh;
+    const toe = (ang, len) => [ax + Math.cos(ang) * len, ay + Math.sin(ang) * len];
+    const down = 0.15 + curl * 0.9, toes = [toe(down - 0.26, 60), toe(down + 0.14, 68), toe(Math.PI - 0.35 - curl * 0.4, 28)];
+    for (const [w, c] of [[46, L.line], [33, L.fill[k]]]) {   // dark outline first, then the orange on top: chunky cartoon legs
+      g.strokeStyle = c; g.lineWidth = w; g.lineCap = g.lineJoin = "round";
+      g.beginPath(); g.moveTo(hx, hy); g.lineTo(kx, ky); g.lineTo(ax, ay); g.stroke();
+      g.lineWidth = w * 0.62;
+      for (const [tx, ty] of toes) { g.beginPath(); g.moveTo(ax, ay); g.lineTo(tx, ty); g.stroke(); }
+    }
+  }
   function walkAcross(name) {
     if (document.getElementById("holWalk")) return;   // one at a time
-    const dir = Math.random() < 0.5 ? 1 : -1, size = Math.round(innerHeight * 0.18), dur = 13000;
-    const box = document.createElement("div"), flip = document.createElement("div"), img = new Image();
-    box.id = "holWalk";
-    Object.assign(box.style, {position: "fixed", left: "0", bottom: "0.4vh", width: size + "px", height: size + "px", pointerEvents: "none", zIndex: "1400"});
-    flip.style.transform = dir > 0 ? "" : "scaleX(-1)";   // the picture faces right; walking left, it is mirrored
-    img.alt = ""; img.src = `img/holiday/sprite-${name}.webp`;
-    Object.assign(img.style, {width: "100%", height: "100%", display: "block", transformOrigin: "50% 90%"});
-    img.onerror = () => box.remove();
-    flip.appendChild(img); box.appendChild(flip); document.body.appendChild(box);
-    const from = dir > 0 ? -size : innerWidth, to = dir > 0 ? innerWidth : -size;
-    box.animate([{transform: `translateX(${from}px)`}, {transform: `translateX(${to}px)`}], {duration: dur, easing: "linear"}).onfinish = () => box.remove();
-    img.animate([{transform: "rotate(-5deg) translateY(0)"}, {transform: "rotate(0deg) translateY(-6%)"}, {transform: "rotate(5deg) translateY(0)"}],
-      {duration: 450, iterations: Infinity, direction: "alternate", easing: "ease-in-out"});   // the waddle: tip, bob up, tip the other way
+    const body = new Image();
+    body.src = `img/holiday/sprite-${name}-body.webp`;
+    const dir = Math.random() < 0.5 ? 1 : -1, size = Math.round(innerHeight * 0.18), dur = 24, dpr = devicePixelRatio || 1;
+    const cv = document.createElement("canvas"), g = cv.getContext("2d");
+    cv.id = "holWalk"; cv.width = cv.height = Math.round(size * dpr);
+    Object.assign(cv.style, {position: "fixed", left: "0", bottom: "0.4vh", width: size + "px", height: size + "px", pointerEvents: "none", zIndex: "1400"});
+    document.body.appendChild(cv);
+    const travel = innerWidth + size, from = dir > 0 ? -size : innerWidth;
+    const cycle = LEG.stride * (size / 784) * dur / (LEG.stance * travel);   // seconds per step cycle that keeps planted feet still
+    let t0 = null, id = 0, frame = 0;
+    function tick(now) {
+      if (t0 === null) t0 = now;
+      const t = (now - t0) / 1000;
+      if (t >= dur) { cv.remove(); return; }
+      id = requestAnimationFrame(tick);
+      if (frame++ % 2) return;   // about 30 frames a second, like the other animations
+      cv.style.transform = `translateX(${(from + dir * travel * t / dur).toFixed(1)}px)`;
+      if (!(body.complete && body.naturalWidth)) return;   // body picture still loading
+      const p = t / cycle, bob = -7 * Math.cos(p * 4 * Math.PI);   // body rises as each leg passes under it
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+      const s = cv.width / 784;
+      g.setTransform(dir * s, 0, 0, s, dir > 0 ? 0 : cv.width, 0);   // mirrored when walking left
+      drawLeg(g, LEG.hips[0][0], LEG.hips[0][1] + bob, (p + 0.5) % 1, 0);
+      drawLeg(g, LEG.hips[1][0], LEG.hips[1][1] + bob, p % 1, 1);
+      g.drawImage(body, 0, bob, 784, 784);   // the body on top hides the tops of the legs
+    }
+    body.onerror = () => { cancelAnimationFrame(id); cv.remove(); };
+    id = requestAnimationFrame(tick);
   }
 
   window.ART = {
