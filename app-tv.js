@@ -549,11 +549,11 @@ function showTenDay(m) {
     // Every 6 hours: an arrow on the line pointing where the wind is heading (like the compass in the now panel), and
     // above it, along the top, where the wind comes from ("SW"), which is how forecasts say it.
     const arrow = (() => {   // drawn once, pointing north; each point turns it
-      const s = Math.round(TVF * 2.4), m = s / 2, cv = document.createElement("canvas"), g = cv.getContext("2d");
+      const s = Math.round(TVF * 1.7), m = s / 2, cv = document.createElement("canvas"), g = cv.getContext("2d");
       cv.width = cv.height = s;
-      g.beginPath(); g.moveTo(m, s * 0.06); g.lineTo(m + s * 0.3, s * 0.46); g.lineTo(m + s * 0.1, s * 0.46); g.lineTo(m + s * 0.1, s * 0.94);
-      g.lineTo(m - s * 0.1, s * 0.94); g.lineTo(m - s * 0.1, s * 0.46); g.lineTo(m - s * 0.3, s * 0.46); g.closePath();
-      g.lineJoin = "round"; g.lineWidth = Math.max(2, s * 0.08); g.strokeStyle = c("--bg"); g.stroke();   // dark edge so it stands out on the lines
+      g.beginPath(); g.moveTo(m, s * 0.06); g.lineTo(m + s * 0.24, s * 0.44); g.lineTo(m + s * 0.06, s * 0.44); g.lineTo(m + s * 0.06, s * 0.94);
+      g.lineTo(m - s * 0.06, s * 0.94); g.lineTo(m - s * 0.06, s * 0.44); g.lineTo(m - s * 0.24, s * 0.44); g.closePath();
+      g.lineJoin = "round"; g.lineWidth = Math.max(1.5, s * 0.06); g.strokeStyle = c("--bg"); g.stroke();   // thin dark edge so it stands out on the lines
       g.fillStyle = c("--accent"); g.fill();
       return cv;
     })();
