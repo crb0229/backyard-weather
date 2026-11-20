@@ -43,7 +43,7 @@
       picture: {img: "img/holiday/thanksgiving-turkey.webp"}, intro: "leaves", walker: "turkey", repeat: true},
     {id: "christmas", main: true, range: y => [[D(y, 12, 1), D(y, 12, 26)]], greeting: fixed("Merry Christmas"),
       font: {family: "Mountains of Christmas", css: "Mountains+of+Christmas:wght@700"}, palette: {bg: "#121a17", panel: "#1a2420", line: "#4a2c2c", title: "#e6c27a"},
-      picture: {img: "img/holiday/christmas-tree.webp"}, intro: "snow", walker: "santa", repeat: true}];
+      picture: {img: "img/holiday/christmas-tree.webp"}, intro: "snow", walker: ["santa", "sleigh"], repeat: true}];
 
   function holidayFor(d) {
     const today = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -193,11 +193,12 @@
   // across the screen (Thanksgiving: the turkey). It follows the clock, not a timer, since the page reloads every 15 minutes; the
   // first check after loading only notes the time, so nothing doubles up with the startup animation.
   // Never at night, with reduced motion, or with the theme switched off. A preview (?date=) walks once, soon after loading.
+  const go = w => w === "sleigh" ? root.ART.flyAcross() : root.ART.walkAcross(w);
   let walkedPreview = false, lastSlot = null;
   function maybeWalk(theme, now, preview) {
     if (!theme || !theme.main || isOff(H.store, theme, now) || reducedMotion() || isNight(now)) return;
     if (preview) {
-      if (theme.walker && !walkedPreview) { walkedPreview = true; setTimeout(() => root.ART.walkAcross(theme.walker), 9000); }   // after the startup animation
+      if (theme.walker && !walkedPreview) { walkedPreview = true; [].concat(theme.walker).forEach((w, i) => setTimeout(() => go(w), 9000 + i * 16000)); }   // after the startup animation, each in turn
       return;
     }
     const slot = Math.floor((now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 150);   // which 2.5-minute stretch of the day
@@ -205,7 +206,7 @@
     const first = lastSlot === null;
     lastSlot = slot;
     if (first) return;
-    if (slot % 2 && theme.walker) root.ART.walkAcross(theme.walker);
+    if (slot % 2 && theme.walker) { const list = [].concat(theme.walker); go(list[(slot >> 1) % list.length]); }   // several walkers take turns
     else if (!(slot % 2) && theme.repeat) root.ART.playIntro(theme);
   }
 

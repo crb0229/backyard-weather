@@ -329,8 +329,45 @@
     id = requestAnimationFrame(tick);
   }
 
+  // Santa's sleigh: one picture that flies across the top, rising and dipping and rocking a little, with sparkles falling behind it.
+  function flyAcross() {
+    if (document.getElementById("holFly")) return;
+    const img = new Image(); img.src = "img/holiday/sprite-sleigh.webp";
+    const dir = Math.random() < 0.5 ? 1 : -1, dur = 11, dpr = devicePixelRatio || 1;
+    const W = innerWidth, H = Math.round(innerHeight * 0.34), sw = Math.round(innerWidth * 0.36);
+    const cv = document.createElement("canvas"), g = cv.getContext("2d");
+    cv.id = "holFly"; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    Object.assign(cv.style, {position: "fixed", left: "0", top: "6vh", width: W + "px", height: H + "px", pointerEvents: "none", zIndex: "1400"});
+    document.body.appendChild(cv);
+    const stars = []; let t0 = null, id = 0, frame = 0;
+    function tick(now) {
+      if (t0 === null) t0 = now;
+      const t = (now - t0) / 1000;
+      if (t >= dur) { cv.remove(); return; }
+      id = requestAnimationFrame(tick);
+      if (frame++ % 2) return;
+      if (!img.complete || !img.naturalWidth) return;
+      const sh = sw * img.naturalHeight / img.naturalWidth, u = t / dur;
+      const x = dir > 0 ? -sw + (W + sw) * u : W - (W + sw) * u;
+      const y = H * 0.35 + Math.sin(u * 2 * Math.PI * 1.5) * H * 0.12 + Math.sin(t * 7) * 3;   // slow swoops plus a quick flutter
+      const tilt = Math.cos(u * 2 * Math.PI * 1.5) * 0.05 * dir + Math.sin(t * 7) * 0.012;      // nose up while rising
+      g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+      if (Math.random() < 0.8) stars.push({x: x + (dir > 0 ? 0.1 : 0.9) * sw, y: y + sh * (0.3 + Math.random() * 0.5), vy: 10 + Math.random() * 25, life: 1, r: 2 + Math.random() * 3});
+      for (let i = stars.length - 1; i >= 0; i--) {
+        const s = stars[i]; s.life -= 0.02; s.y += s.vy / 30;
+        if (s.life <= 0) { stars.splice(i, 1); continue; }
+        g.globalAlpha = s.life; g.fillStyle = "#fff6b0"; g.beginPath(); g.arc(s.x, s.y, s.r * s.life + 0.5, 0, 7); g.fill();
+      }
+      g.globalAlpha = 1;
+      g.translate(x + sw / 2, y + sh / 2); g.rotate(tilt); g.scale(dir, 1);   // mirrored when flying left
+      g.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+    }
+    img.onerror = () => { cancelAnimationFrame(id); cv.remove(); };
+    id = requestAnimationFrame(tick);
+  }
+
   window.ART = {
-    INTROS, playIntro, stopIntro, walkAcross,
+    INTROS, playIntro, stopIntro, walkAcross, flyAcross,
     drawFlag,
     drawDeathStar
   };
