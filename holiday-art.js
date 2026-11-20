@@ -316,7 +316,9 @@
       const s = cv.width / 784;
       g.setTransform(dir * s, 0, 0, s, dir > 0 ? 0 : cv.width, 0);   // mirrored when walking left
       if (fr) {   // the pictures already bob, with the boots on one line, so just play them in order
-        g.drawImage(pics[Math.floor(((t / cycle) % 1) * fr.n)], 0, 0, 784, 784);
+        const q = ((t / cycle) % 1) * fr.n, i = Math.floor(q), mix = q - i;   // blend into the next picture so the steps flow
+        g.drawImage(pics[i], 0, 0, 784, 784);
+        g.globalAlpha = mix; g.drawImage(pics[(i + 1) % fr.n], 0, 0, 784, 784); g.globalAlpha = 1;
         return;
       }
       // Body lowest just after each foot lands (feet land at p = 0 and 0.5) and highest as the free leg swings past (0.3, 0.8)
