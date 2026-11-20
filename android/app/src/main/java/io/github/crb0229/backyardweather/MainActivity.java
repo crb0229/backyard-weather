@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -25,6 +26,7 @@ public class MainActivity extends Activity {
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);                  // remembers the chosen location
+        s.setTextZoom(100);                            // ignore the TV's font-size setting; the page is sized to fill one screen exactly
         web.setBackgroundColor(0xFF0F151B);
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -35,6 +37,11 @@ public class MainActivity extends Activity {
             @Override
             public void onReceivedError(WebView v, WebResourceRequest r, WebResourceError e) {
                 if (r.isForMainFrame()) v.postDelayed(() -> v.loadUrl(PAGE), 30000);   // no internet yet: try again in 30 s
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView v, WebResourceRequest r, WebResourceResponse e) {
+                if (r.isForMainFrame()) v.postDelayed(() -> v.loadUrl(PAGE), 30000);   // GitHub error page (e.g. mid-deploy): try again in 30 s
             }
         });
         setContentView(web);

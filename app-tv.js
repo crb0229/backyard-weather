@@ -19,7 +19,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;",
 const f0 = v => v == null || v === "" ? "--" : Math.round(v);
 const fmt = new Intl.DateTimeFormat("en-CA", {timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23"});
 // "YYYY-MM-DDTHH" in Michigan time, used to line up NWS and model hours
-const key = d => { const p = Object.fromEntries(fmt.formatToParts(d).map(x => [x.type, x.value])); return `${p.year}-${p.month}-${p.day}T${p.hour}`; };
+const key = d => { const p = {}; fmt.formatToParts(d).forEach(x => p[x.type] = x.value); return `${p.year}-${p.month}-${p.day}T${p.hour}`; };
 const hr = d => d.toLocaleTimeString("en-US", {timeZone: TZ, hour: "numeric"});
 const season = m => ["winter","winter","spring","spring","spring","summer","summer","summer","fall","fall","fall","winter"][m - 1];
 const compass = d => d == null ? "" : ["N","NE","E","SE","S","SW","W","NW"][Math.round(d / 45) % 8];
@@ -62,11 +62,11 @@ async function main() {
     hourly: "temperature_2m,apparent_temperature,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,pressure_msl,precipitation_probability,precipitation,snowfall,is_day",
     daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,sunrise,sunset,daylight_duration",
     minutely_15: "precipitation"}));
-  const results = await Promise.allSettled([
+  const results = await Promise.all([   // a failed piece becomes null, so one failure doesn't stop the rest (older TV browsers lack allSettled)
     get(`https://api.weather.gov/alerts/active?point=${LAT.toFixed(4)},${LON.toFixed(4)}`),
     nwsGet("forecast"), nwsGet("forecastHourly"), nwsGet("forecastGridData"), om, obsP,
-    STATION ? get("data/nowcast.json") : null]);   // Rainbow.ai rain timing, collected for the home station only
-  const [alerts, daily, hourly, grid, model, cur, nowcast] = results.map(r => r.status === "fulfilled" ? r.value : null);
+    STATION ? get("data/nowcast.json") : null].map(p => Promise.resolve(p).catch(() => null)));   // Rainbow.ai rain timing, collected for the home station only
+  const [alerts, daily, hourly, grid, model, cur, nowcast] = results;
   if (window.onData) try { window.onData(cur, model, alerts ? alerts.features : []); } catch (e) { note("theme didn't load"); }   // the TV page sets its theme here, before the charts read the colors
   if (alerts) showAlerts(alerts.features);
   if (daily) showDays(daily.properties.periods);
@@ -114,7 +114,6 @@ function stationOnly() {
   $("tenNote").textContent = "Model forecast (Open-Meteo best match). Shaded bands are night; the white line is now; the dashed line is 32°F. Tap a chart to read values.";
   $("sources").textContent = "Sources: National Weather Service, Open-Meteo, NOAA nowCOAST radar.";
   $("hourlyTitle").textContent = $("hourlyTitle").textContent.replace("at the station", "here");
-  $("issTitle").textContent = $("issTitle").textContent.replace("from home", "from here");
 }
 
 function saveLoc(v) { try { localStorage.setItem("wx:loc", JSON.stringify(v)); } catch (e) {} }
@@ -126,8 +125,8 @@ function picker(first) {
   if (document.getElementById("locPick")) return;
   const box = document.createElement("div"); box.id = "locPick";
   box.innerHTML = `<style>
-#locPick{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}
-#locPick .box{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:20px 22px;width:min(460px,100%);display:flex;flex-direction:column;gap:10px;font:16px/1.4 var(--body)}
+#locPick{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2000;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}
+#locPick .box{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:20px 22px;width:460px;max-width:100%;display:flex;flex-direction:column;gap:10px;font:16px/1.4 var(--body)}
 #locPick h2{font:600 22px var(--display);margin:0;color:var(--fg);text-transform:none;letter-spacing:0}
 #locPick input{font:inherit;padding:9px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
 #locPick button{font:inherit;text-align:left;padding:9px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--accent);cursor:pointer;margin:0}
@@ -637,4 +636,3 @@ function step() {
 function note(msg) { const p = $("problems"); p.hidden = false; p.textContent += (p.textContent ? "; " : "Problems: ") + msg; }
 window.addEventListener("error", e => note(e.message));
 main().catch(e => { note(e.message); $("rainCall").textContent = "Could not load forecast"; });
-setTimeout(() => location.reload(), 15 * 60000);   // refresh every 15 min so it can stay open on a phone or TV

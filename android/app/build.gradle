@@ -10,8 +10,8 @@ android {
         applicationId 'io.github.crb0229.backyardweather'
         minSdk 26
         targetSdk 35
-        versionCode 3
-        versionName '1.2'
+        versionCode 4
+        versionName '1.3'
     }
 
     // The signing key is kept out of the repo: the build workflow writes it from GitHub secrets
