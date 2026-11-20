@@ -1,5 +1,6 @@
 // TEST: holiday themes for tv-test.html. This part has no page code, so Node can test it (tests/holiday/logic.test.js).
 // Seven main holidays get a picture, a holiday font, soft colors and a short startup animation; six others get only a greeting.
+// The main ones run from 7 days before the holiday through the day after; Christmas keeps all of December 1-26.
 (function (root) {
   const D = (y, m, day) => new Date(y, m - 1, day);
   const add = (dt, n) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() + n);
@@ -14,30 +15,30 @@
   const greet = (id, text, color, range) => ({id, main: false, greeting: fixed(text), color, range});
 
   const THEMES = [
-    {id: "newyear", main: true, range: y => [[D(y, 1, 1), D(y, 1, 1)], [D(y, 12, 31), D(y, 12, 31)]],
-      greeting: d => (d.getMonth() === 11 ? "Happy New Year's Eve" : "Happy New Year"),
+    {id: "newyear", main: true, range: y => [[D(y, 1, 1), D(y, 1, 2)], [D(y, 12, 27), D(y, 12, 31)]],   // starts the day after Christmas ends
+      greeting: d => (d.getMonth() === 11 && d.getDate() === 31 ? "Happy New Year's Eve" : "Happy New Year"),
       offYear: d => (d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear()),   // Dec 31 and the Jan 1 after it are one holiday
       font: {family: "Great Vibes", css: "Great+Vibes"}, palette: {bg: "#121216", panel: "#1b1b22", line: "#4a4030", title: "#e8c86a"},
       picture: {img: "img/holiday/newyear-glasses.webp"}, intro: "confetti"},
     greet("valentines", "Happy Valentine's Day", "#e0607e", y => [[D(y, 2, 10), D(y, 2, 14)]]),
     greet("stpatricks", "Happy St. Patrick's Day", "#3fae5a", y => [[D(y, 3, 14), D(y, 3, 17)]]),
-    {id: "easter", main: true, range: y => [[add(easter(y), -2), easter(y)]], greeting: fixed("Happy Easter"),
+    {id: "easter", main: true, range: y => [[add(easter(y), -7), add(easter(y), 1)]], greeting: fixed("Happy Easter"),
       font: {family: "Sniglet", css: "Sniglet:wght@800"}, palette: {bg: "#1c1924", panel: "#232030", line: "#4a4060", title: "#e9c6dc"},
       picture: {img: "img/holiday/easter-bunny.webp"}, intro: "bunny"},
-    {id: "may4", main: true, range: y => [[D(y, 5, 4), D(y, 5, 4)]], greeting: fixed("May the 4th be with you"),
+    {id: "may4", main: true, range: y => [[D(y, 4, 27), D(y, 5, 5)]], greeting: fixed("May the 4th be with you"),
       font: {family: "Orbitron", css: "Orbitron:wght@600"}, palette: {bg: "#0a0d14", panel: "#121620", line: "#2a3140", title: "#d9dde6"},
       picture: {draw: "deathstar"}, intro: "lightspeed"},
     greet("mothers", "Happy Mother's Day", "#e48ab0", y => [[add(nth(y, 5, 0, 2), -1), nth(y, 5, 0, 2)]]),
     greet("memorial", "Memorial Day: remembering those who served", "#9fb4c8", y => [[add(last(y, 5, 1), -2), last(y, 5, 1)]]),
     greet("fathers", "Happy Father's Day", "#6fb0de", y => [[add(nth(y, 6, 0, 3), -1), nth(y, 6, 0, 3)]]),
-    {id: "july4", main: true, range: y => [[D(y, 7, 1), D(y, 7, 5)]], greeting: fixed("Happy Fourth of July"),
+    {id: "july4", main: true, range: y => [[D(y, 6, 27), D(y, 7, 5)]], greeting: fixed("Happy Fourth of July"),
       font: {family: "Alfa Slab One", css: "Alfa+Slab+One"}, palette: {bg: "#111827", panel: "#182235", line: "#3d3a55", title: "#ece4d4"},
       picture: {draw: "flag"}, intro: "flag"},
     greet("labor", "Happy Labor Day", "#d2b48c", y => [[add(nth(y, 9, 1, 1), -2), nth(y, 9, 1, 1)]]),
-    {id: "halloween", main: true, range: y => [[D(y, 10, 25), D(y, 10, 31)]], greeting: fixed("Happy Halloween"),
+    {id: "halloween", main: true, range: y => [[D(y, 10, 24), D(y, 11, 1)]], greeting: fixed("Happy Halloween"),
       font: {family: "Griffy", css: "Griffy"}, palette: {bg: "#1d1418", panel: "#251b1f", line: "#4a3326", title: "#e8a35a"},
       picture: {img: "img/holiday/halloween-pumpkin.webp"}, intro: "bats"},
-    {id: "thanksgiving", main: true, range: y => [[add(nth(y, 11, 4, 4), -3), add(nth(y, 11, 4, 4), 1)]], greeting: fixed("Happy Thanksgiving"),
+    {id: "thanksgiving", main: true, range: y => [[add(nth(y, 11, 4, 4), -7), add(nth(y, 11, 4, 4), 1)]], greeting: fixed("Happy Thanksgiving"),
       font: {family: "Kaushan Script", css: "Kaushan+Script"}, palette: {bg: "#1c1612", panel: "#261d17", line: "#5a3d24", title: "#e0a35a"},
       picture: {img: "img/holiday/thanksgiving-turkey.webp"}, intro: "leaves", walker: "turkey"},
     {id: "christmas", main: true, range: y => [[D(y, 12, 1), D(y, 12, 26)]], greeting: fixed("Merry Christmas"),

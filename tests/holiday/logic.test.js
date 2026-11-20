@@ -9,24 +9,35 @@ const id = d => (H.holidayFor(d) || {}).id || null;
 function memStore() { const m = {}; return H.safeStore({getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: k => { delete m[k]; }}); }
 
 test("windows", () => {
+  // Main holidays: 7 days before through the day after. Christmas keeps Dec 1-26; New Year's follows on Dec 27 - Jan 2.
+  assert.strictEqual(id(day(2026, 11, 30)), null);
+  assert.strictEqual(id(day(2026, 12, 1)), "christmas");
   assert.strictEqual(id(day(2026, 12, 26)), "christmas");
-  assert.strictEqual(id(day(2026, 12, 27)), null);
+  assert.strictEqual(id(day(2026, 12, 27)), "newyear");
+  assert.strictEqual(H.holidayFor(day(2026, 12, 27)).greeting(day(2026, 12, 27)), "Happy New Year");
   assert.strictEqual(H.holidayFor(day(2026, 12, 31)).greeting(day(2026, 12, 31)), "Happy New Year's Eve");
   assert.strictEqual(H.holidayFor(day(2027, 1, 1)).greeting(day(2027, 1, 1)), "Happy New Year");
-  assert.strictEqual(id(day(2026, 11, 23)), "thanksgiving");
+  assert.strictEqual(id(day(2027, 1, 2)), "newyear");
+  assert.strictEqual(id(day(2027, 1, 3)), null);
+  assert.strictEqual(id(day(2026, 11, 18)), null);          // Thanksgiving 2026 is Nov 26
+  assert.strictEqual(id(day(2026, 11, 19)), "thanksgiving");
   assert.strictEqual(id(day(2026, 11, 27)), "thanksgiving");
-  assert.notStrictEqual(id(day(2026, 11, 22)), "thanksgiving");
-  assert.notStrictEqual(id(day(2026, 11, 28)), "thanksgiving");
-  assert.strictEqual(id(day(2027, 3, 26)), "easter");
-  assert.strictEqual(id(day(2027, 3, 28)), "easter");
-  assert.notStrictEqual(id(day(2027, 3, 29)), "easter");
-  assert.strictEqual(id(day(2026, 5, 4)), "may4");
-  assert.strictEqual(id(day(2026, 5, 3)), null);
-  assert.strictEqual(id(day(2026, 5, 5)), null);
-  assert.strictEqual(id(day(2026, 10, 25)), "halloween");
-  assert.strictEqual(id(day(2026, 10, 31)), "halloween");
-  assert.strictEqual(id(day(2026, 7, 1)), "july4");
+  assert.strictEqual(id(day(2026, 11, 28)), null);
+  assert.strictEqual(id(day(2027, 3, 20)), null);           // Easter 2027 is Mar 28
+  assert.strictEqual(id(day(2027, 3, 21)), "easter");
+  assert.strictEqual(id(day(2027, 3, 29)), "easter");
+  assert.notStrictEqual(id(day(2027, 3, 30)), "easter");
+  assert.strictEqual(id(day(2026, 4, 26)), null);
+  assert.strictEqual(id(day(2026, 4, 27)), "may4");
+  assert.strictEqual(id(day(2026, 5, 5)), "may4");
+  assert.strictEqual(id(day(2026, 5, 6)), null);
+  assert.strictEqual(id(day(2026, 10, 23)), null);
+  assert.strictEqual(id(day(2026, 10, 24)), "halloween");
+  assert.strictEqual(id(day(2026, 11, 1)), "halloween");
+  assert.strictEqual(id(day(2026, 6, 26)), null);
+  assert.strictEqual(id(day(2026, 6, 27)), "july4");
   assert.strictEqual(id(day(2026, 7, 5)), "july4");
+  assert.strictEqual(id(day(2026, 7, 6)), null);
 });
 
 test("greetingOnly", () => {
