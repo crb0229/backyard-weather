@@ -76,7 +76,8 @@
     // Thanksgiving: maple and oak leaves tumble down once, flipping as they fall
     leaves(g, w, h, t, st) {
       const u = h / 1080, names = ["maple-rust", "maple-amber", "oak-gold"];
-      st.l = st.l || Array.from({length: 20}, (_, i) => ({n: names[i % 3], x: rnd(0, w), y: rnd(-0.8 * h, -0.05 * h), s: rnd(40, 75) * u, v: rnd(0.1, 0.16) * h,
+      // A long stream of leaves (up to almost two screens above the top), so they keep coming for the whole 18 seconds
+      st.l = st.l || Array.from({length: 48}, (_, i) => ({n: names[i % 3], x: rnd(0, w), y: rnd(-1.9 * h, -0.05 * h), s: rnd(40, 75) * u, v: rnd(0.1, 0.16) * h,
         sw: rnd(30, 70) * u, fq: rnd(0.5, 1), ph: rnd(0, 6.3), flip: rnd(1.2, 2.4), spin: rnd(-0.6, 0.6)}));
       for (const l of st.l) {
         const img = sprite(l.n), x = l.x + Math.sin(t * l.fq + l.ph) * l.sw, y = l.y + l.v * t;
@@ -131,7 +132,7 @@
     }
   };
   INTROS.bunny.dur = 3.6;
-  INTROS.leaves.dur = 10;   // Thanksgiving leaves fall a little longer than the usual 8 seconds
+  INTROS.leaves.dur = 18;   // Thanksgiving leaves fall 10 seconds longer than the usual 8
   INTROS.lightspeed.dur = 3.2;
   const PIC_CLASS = {bats: "hol-glow", bunny: "hol-hop"};   // the header picture's own part of some animations
 
