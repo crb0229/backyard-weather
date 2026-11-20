@@ -492,12 +492,14 @@ function showTenDay(m) {
   const flat = v => T.map(() => v);
 
   if (window.CHART_FONT) {
-    // TV: its own page; just the temperature and the freezing line, on a scale that fits the temperatures (rounded out
-    // to 10s) instead of one that starts at zero and flattens the line
-    const t = h.temperature_2m.filter(v => v != null), lo = Math.floor((Math.min(32, ...t) - 2) / 10) * 10, hi = Math.ceil((Math.max(...t) + 2) / 10) * 10;
+    // TV: its own page; the temperature, what it feels like (wind chill on cold windy days, heat index on hot humid ones)
+    // and the freezing line, on a scale that fits both (rounded out to 10s) instead of one that starts at zero
+    const t = h.temperature_2m.concat(h.apparent_temperature).filter(v => v != null);
+    const lo = Math.floor((Math.min(32, ...t) - 2) / 10) * 10, hi = Math.ceil((Math.max(...t) + 2) / 10) * 10;
     mk("cTemp", base({min: lo, max: hi}), [
-      {label: "Temperature °F", data: h.temperature_2m, borderColor: c("--bad"), borderWidth: 4},
-      {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [5, 5], borderWidth: 2}]);
+      {label: "Temperature °F", data: h.temperature_2m, borderColor: c("--bad"), borderWidth: 4, order: 1},
+      {label: "Feels like", data: h.apparent_temperature, borderColor: c("--feels"), borderWidth: 3, order: 2},
+      {label: "32°F", data: flat(32), borderColor: c("--cold"), borderDash: [5, 5], borderWidth: 2, order: 3}]);
   } else
   mk("cTemp", base({}), [
     {label: "Temperature °F", data: h.temperature_2m, borderColor: c("--bad")},
