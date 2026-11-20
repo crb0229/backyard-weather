@@ -287,17 +287,22 @@
       for (const [tx, ty] of toes) { g.beginPath(); g.moveTo(ax, ay); g.lineTo(tx, ty); g.stroke(); }
     }
   }
+  // Walkers made of a few pictures played in turn instead of code-drawn legs (Santa: four poses of one step, looped).
+  // stride = how far he travels during one trip through the pictures, in the picture's 784-pixel units (about the gap between
+  // his boots at the widest), so the step rate matches the walking speed. Picture order: lands, down, up, reaching.
+  const FRAMES = {santa: {n: 4, stride: 340, size: 0.2, dur: 13}};
   function walkAcross(name) {
     if (document.getElementById("holWalk")) return;   // one at a time
-    const body = new Image();
-    body.src = `img/holiday/sprite-${name}-body.webp`;
-    const dir = Math.random() < 0.5 ? 1 : -1, size = Math.round(innerHeight * 0.18), dur = 24, dpr = devicePixelRatio || 1;
+    const fr = FRAMES[name];
+    const pics = Array.from({length: fr ? fr.n : 1}, (_, i) => { const im = new Image(); im.src = `img/holiday/sprite-${name}-${fr ? i + 1 : "body"}.webp`; return im; });
+    const body = pics[0];
+    const dir = Math.random() < 0.5 ? 1 : -1, size = Math.round(innerHeight * (fr ? fr.size : 0.18)), dur = fr ? fr.dur : 24, dpr = devicePixelRatio || 1;
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
     cv.id = "holWalk"; cv.width = cv.height = Math.round(size * dpr);
     Object.assign(cv.style, {position: "fixed", left: "0", bottom: "0.4vh", width: size + "px", height: size + "px", pointerEvents: "none", zIndex: "1400"});
     document.body.appendChild(cv);
     const travel = innerWidth + size, from = dir > 0 ? -size : innerWidth;
-    const cycle = LEG.stride * (size / 784) * dur / (LEG.stance * travel);   // seconds per step cycle that keeps planted feet still
+    const cycle = fr ? fr.stride * (size / 784) * dur / travel : LEG.stride * (size / 784) * dur / (LEG.stance * travel);   // seconds per step cycle that keeps planted feet still
     let t0 = null, id = 0, frame = 0;
     function tick(now) {
       if (t0 === null) t0 = now;
@@ -306,17 +311,22 @@
       id = requestAnimationFrame(tick);
       if (frame++ % 2) return;   // about 30 frames a second, like the other animations
       cv.style.transform = `translateX(${(from + dir * travel * t / dur).toFixed(1)}px)`;
-      if (!(body.complete && body.naturalWidth)) return;   // body picture still loading
-      // Body lowest just after each foot lands (feet land at p = 0 and 0.5) and highest as the free leg swings past (0.3, 0.8)
-      const p = t / cycle, bob = -7 * Math.cos((p - 0.3) * 4 * Math.PI);
+      if (!pics.every(im => im.complete && im.naturalWidth)) return;   // pictures still loading
       g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
       const s = cv.width / 784;
       g.setTransform(dir * s, 0, 0, s, dir > 0 ? 0 : cv.width, 0);   // mirrored when walking left
+      if (fr) {   // lowest in the "down" picture, highest in the "up" one
+        const p = (t / cycle) % 1, bob = 10 * Math.cos((p - 0.375) * 2 * Math.PI);
+        g.drawImage(pics[Math.floor(p * fr.n)], 0, bob, 784, 784);
+        return;
+      }
+      // Body lowest just after each foot lands (feet land at p = 0 and 0.5) and highest as the free leg swings past (0.3, 0.8)
+      const p = t / cycle, bob = -7 * Math.cos((p - 0.3) * 4 * Math.PI);
       drawLeg(g, LEG.hips[0][0], LEG.hips[0][1] + bob, (p + 0.5) % 1, 0);
       drawLeg(g, LEG.hips[1][0], LEG.hips[1][1] + bob, p % 1, 1);
       g.drawImage(body, 0, bob, 784, 784);   // the body on top hides the tops of the legs
     }
-    body.onerror = () => { cancelAnimationFrame(id); cv.remove(); };
+    pics.forEach(im => im.onerror = () => { cancelAnimationFrame(id); cv.remove(); });
     id = requestAnimationFrame(tick);
   }
 
