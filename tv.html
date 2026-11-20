@@ -372,6 +372,7 @@ function windMeters(s) {
     } catch (e) {}
   }
   setInterval(check, 60000); check();   // the timer first, so one failed check cannot stop the next ones
+  if (!preview) setInterval(() => { try { const l = new Date(new Date().toLocaleString("en-US", {timeZone: TZ})); HOLIDAY.maybeWalk(HOLIDAY.holidayFor(l), l, false); } catch (e) {} }, 10000);   // the leaves and turkey come every 2.5 minutes, so look more often than once a minute
   setInterval(() => { const r = () => Math.round(Math.random() * 8 - 4); document.body.style.transform = `translate(${r()}px,${r()}px)`; }, 600000);
 })();
 

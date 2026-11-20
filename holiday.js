@@ -188,9 +188,9 @@
     root.ART.playIntro(theme);
   }
 
-  // Every 5 minutes during a holiday something happens, alternating: on the :00, :10, :20... the startup animation plays
-  // again (holidays marked "repeat"; Thanksgiving: falling leaves), and on the :05, :15, :25... a character walks across
-  // the screen (Thanksgiving: the turkey). It follows the clock, not a timer, since the page reloads every 15 minutes; the
+  // Every 2.5 minutes during a holiday something happens, alternating: on the :00:00, :05:00, :10:00... the startup animation
+  // plays again (holidays marked "repeat"; Thanksgiving: falling leaves), and on the :02:30, :07:30, :12:30... a character walks
+  // across the screen (Thanksgiving: the turkey). It follows the clock, not a timer, since the page reloads every 15 minutes; the
   // first check after loading only notes the time, so nothing doubles up with the startup animation.
   // Never at night, with reduced motion, or with the theme switched off. A preview (?date=) walks once, soon after loading.
   let walkedPreview = false, lastSlot = null;
@@ -200,7 +200,7 @@
       if (theme.walker && !walkedPreview) { walkedPreview = true; setTimeout(() => root.ART.walkAcross(theme.walker), 9000); }   // after the startup animation
       return;
     }
-    const slot = Math.floor((now.getHours() * 60 + now.getMinutes()) / 5);   // which 5-minute stretch of the day
+    const slot = Math.floor((now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 150);   // which 2.5-minute stretch of the day
     if (slot === lastSlot) return;
     const first = lastSlot === null;
     lastSlot = slot;
