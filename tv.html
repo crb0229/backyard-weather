@@ -84,6 +84,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .eve{display:flex;gap:.6vw;flex:1;min-height:0;max-height:16vh}   /* the cards take the room left under the hourly table */
 .eve div{flex:1;text-align:center;border:1px solid var(--line);border-radius:6px;padding:.6vh 2px;font-size:1.25rem;display:flex;flex-direction:column;justify-content:center}
 #hourlyKey{margin:0}
+#hourly{flex:1;font-size:1.1rem}   /* the table has the page to itself: taller rows; 1.1 is the largest text where all 9 hours fit */
 .eve .c0{border-color:var(--yard)}
 #radar .leaflet-tile-pane .basemap{filter:invert(1) hue-rotate(180deg) grayscale(.7) brightness(.75) contrast(1.15)}   /* dark map; turning the hue back keeps lakes a deep blue instead of a light grey that outshines the land */
 .sunmoon{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;gap:.8vh;min-height:0;position:relative;padding-bottom:1.4vh}   /* sky arc on top, sun and moon details below */
@@ -236,8 +237,6 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
         <div class="slidehead"><h2 id="hourlyTitle">Next 9 hours at the station</h2><span class="dots"></span></div>
         <table id="hourly"></table>
         <p class="small" id="hourlyKey"><span class="yard">Green</span>: adjusted to how the forecast has missed at the station</p>
-        <h2>Evening sky, 7 PM to midnight</h2>
-        <div class="eve" id="evenings"></div>
       </div>
       <div class="slide">
         <div class="slidehead"><h2>Sky and rain, next 3 days</h2><span class="dots"></span></div>
