@@ -269,41 +269,55 @@
   // and really step: each foot plants and slides back while the other lifts in an arc and swings forward, toes curling.
   // The step rate is matched to the walking speed so a planted foot doesn't skate. Positions are in the picture's own
   // 784-pixel units; the picture faces right and is mirrored when walking left.
-  const LEG = {hips: [[300, 572], [505, 566]], ground: 702, stride: 120, stance: 0.6, thigh: 70, shin: 72,
-    fill: ["#d9861a", "#f6a523"], line: "#3a1d07"};   // far leg a shade darker
-  function drawLeg(g, hx, hy, p, k) {
-    const L = LEG, half = L.stride / 2;
-    let fx, fy, curl;
-    if (p < L.stance) { const q = p / L.stance; fx = hx + half - q * L.stride; fy = L.ground; curl = 0; }            // planted, sliding back
-    else { const q = (p - L.stance) / (1 - L.stance); fx = hx - half + q * L.stride; fy = L.ground - Math.sin(q * Math.PI) * 42; curl = Math.sin(q * Math.PI); }   // lifted, swinging forward
-    const ax = fx, ay = fy - 12, dx = ax - hx, dy = ay - hy, d = Math.min(L.thigh + L.shin - 1, Math.hypot(dx, dy));
-    const bend = Math.acos((L.thigh * L.thigh + d * d - L.shin * L.shin) / (2 * L.thigh * d)), a = Math.atan2(dy, dx) + bend;   // joint bends backward, like a bird's
+  const LEGS = {
+    turkey: {hips: [[300, 572], [505, 566]], ground: 702, stride: 120, stance: 0.6, thigh: 70, shin: 72, rise: 12, knee: 1,
+      fill: ["#d9861a", "#f6a523"], line: "#3a1d07"},   // far leg a shade darker
+    // Santa: red trousers and black boots under the coat hem; the knee bends forward
+    santa: {size: 0.22, dur: 14, bob: 5, hips: [[372, 548], [446, 548]], ground: 740, stride: 190, stance: 0.58, thigh: 100, shin: 100, rise: 34, knee: -1, boot: true,
+      fill: ["#b5121a", "#e0212a"], line: "#6b0c12"}
+  };
+  function drawLeg(g, L, hx, hy, p, k) {
+    const half = L.stride / 2;
+    let fx, fy, curl, ang = 0;
+    if (p < L.stance) { const q = p / L.stance; fx = hx + half - q * L.stride; fy = L.ground; curl = 0; ang = -0.2 * Math.max(0, 1 - q / 0.25) + 0.4 * Math.max(0, (q - 0.75) / 0.25); }   // planted, sliding back, heel lifting at the end
+    else { const q = (p - L.stance) / (1 - L.stance); fx = hx - half + q * L.stride; fy = L.ground - Math.sin(q * Math.PI) * 42; curl = Math.sin(q * Math.PI); ang = 0.4 - 0.6 * Math.sin(q * Math.PI / 2); }   // lifted, swinging forward, toe coming up
+    const ax = fx, ay = fy - L.rise, dx = ax - hx, dy = ay - hy, d = Math.min(L.thigh + L.shin - 1, Math.hypot(dx, dy));
+    const bend = Math.acos((L.thigh * L.thigh + d * d - L.shin * L.shin) / (2 * L.thigh * d)), a = Math.atan2(dy, dx) + L.knee * bend;
     const kx = hx + Math.cos(a) * L.thigh, ky = hy + Math.sin(a) * L.thigh;
+    g.lineCap = g.lineJoin = "round";
+    if (L.boot) {
+      for (const [extra, c] of [[7, L.line], [0, L.fill[k]]]) {   // dark outline first, then the red on top
+        g.strokeStyle = c;
+        g.lineWidth = 84 + extra; g.beginPath(); g.moveTo(hx, hy); g.lineTo(kx, ky); g.stroke();
+        g.lineWidth = 64 + extra; g.beginPath(); g.moveTo(kx, ky); g.lineTo(ax, ay - 8); g.stroke();
+      }
+      g.save(); g.translate(ax, ay); g.rotate(ang);   // the boot: a tall shaft and a long toe, turning about the ankle
+      g.beginPath(); g.moveTo(-33, -50); g.lineTo(33, -50); g.lineTo(35, 0); g.quadraticCurveTo(104, 2, 100, 30);
+      g.quadraticCurveTo(99, 36, 90, 36); g.lineTo(-38, 36); g.quadraticCurveTo(-50, 20, -36, -6); g.closePath();
+      g.fillStyle = k ? "#2d2e34" : "#1f2024"; g.fill(); g.strokeStyle = "#0b0b0d"; g.lineWidth = 3.5; g.stroke();
+      g.beginPath(); g.moveTo(-36, 28); g.lineTo(92, 28); g.strokeStyle = "rgba(255,255,255,.14)"; g.lineWidth = 3; g.stroke();   // the sole
+      g.restore();
+      return;
+    }
     const toe = (ang, len) => [ax + Math.cos(ang) * len, ay + Math.sin(ang) * len];
     const down = 0.15 + curl * 0.9, toes = [toe(down - 0.26, 60), toe(down + 0.14, 68), toe(Math.PI - 0.35 - curl * 0.4, 28)];
     for (const [w, c] of [[46, L.line], [33, L.fill[k]]]) {   // dark outline first, then the orange on top: chunky cartoon legs
-      g.strokeStyle = c; g.lineWidth = w; g.lineCap = g.lineJoin = "round";
+      g.strokeStyle = c; g.lineWidth = w;
       g.beginPath(); g.moveTo(hx, hy); g.lineTo(kx, ky); g.lineTo(ax, ay); g.stroke();
       g.lineWidth = w * 0.62;
       for (const [tx, ty] of toes) { g.beginPath(); g.moveTo(ax, ay); g.lineTo(tx, ty); g.stroke(); }
     }
   }
-  // Walkers made of a few pictures played in turn instead of code-drawn legs (Santa: four poses of one step, looped).
-  // stride = how far he travels during one trip through the pictures, in the picture's 784-pixel units (about the gap between
-  // his boots at the widest), so the step rate matches the walking speed. Picture order: contact, in-between, down, in-between, passing, in-between, up, in-between (one full stride, two steps).
-  const FRAMES = {santa: {n: 8, stride: 560, size: 0.22, dur: 14}};
   function walkAcross(name) {
     if (document.getElementById("holWalk")) return;   // one at a time
-    const fr = FRAMES[name];
-    const pics = Array.from({length: fr ? fr.n : 1}, (_, i) => { const im = new Image(); im.src = `img/holiday/sprite-${name}-${fr ? i + 1 : "body"}.webp`; return im; });
-    const body = pics[0];
-    const dir = Math.random() < 0.5 ? 1 : -1, size = Math.round(innerHeight * (fr ? fr.size : 0.18)), dur = fr ? fr.dur : 24, dpr = devicePixelRatio || 1;
+    const L = LEGS[name], body = new Image(); body.src = `img/holiday/sprite-${name}-body.webp`;
+    const dir = Math.random() < 0.5 ? 1 : -1, size = Math.round(innerHeight * (L.size || 0.18)), dur = L.dur || 24, dpr = devicePixelRatio || 1;
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
     cv.id = "holWalk"; cv.width = cv.height = Math.round(size * dpr);
     Object.assign(cv.style, {position: "fixed", left: "0", bottom: "0.4vh", width: size + "px", height: size + "px", pointerEvents: "none", zIndex: "1400"});
     document.body.appendChild(cv);
     const travel = innerWidth + size, from = dir > 0 ? -size : innerWidth;
-    const cycle = fr ? fr.stride * (size / 784) * dur / travel : LEG.stride * (size / 784) * dur / (LEG.stance * travel);   // seconds per step cycle that keeps planted feet still
+    const cycle = L.stride * (size / 784) * dur / (L.stance * travel);   // seconds per step cycle that keeps planted feet still
     let t0 = null, id = 0, frame = 0;
     function tick(now) {
       if (t0 === null) t0 = now;
@@ -312,23 +326,17 @@
       id = requestAnimationFrame(tick);
       if (frame++ % 2) return;   // about 30 frames a second, like the other animations
       cv.style.transform = `translateX(${(from + dir * travel * t / dur).toFixed(1)}px)`;
-      if (!pics.every(im => im.complete && im.naturalWidth)) return;   // pictures still loading
+      if (!body.complete || !body.naturalWidth) return;   // picture still loading
       g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
       const s = cv.width / 784;
       g.setTransform(dir * s, 0, 0, s, dir > 0 ? 0 : cv.width, 0);   // mirrored when walking left
-      if (fr) {   // the pictures already bob, with the boots on one line, so just play them in order
-        const q = ((t / cycle) % 1) * fr.n, i = Math.floor(q), mix = q - i;   // blend into the next picture so the steps flow
-        g.drawImage(pics[i], 0, 0, 784, 784);
-        g.globalAlpha = mix; g.drawImage(pics[(i + 1) % fr.n], 0, 0, 784, 784); g.globalAlpha = 1;
-        return;
-      }
       // Body lowest just after each foot lands (feet land at p = 0 and 0.5) and highest as the free leg swings past (0.3, 0.8)
-      const p = t / cycle, bob = -7 * Math.cos((p - 0.3) * 4 * Math.PI);
-      drawLeg(g, LEG.hips[0][0], LEG.hips[0][1] + bob, (p + 0.5) % 1, 0);
-      drawLeg(g, LEG.hips[1][0], LEG.hips[1][1] + bob, p % 1, 1);
+      const p = t / cycle, bob = -(L.bob || 7) * Math.cos((p - 0.3) * 4 * Math.PI);
+      drawLeg(g, L, L.hips[0][0], L.hips[0][1] + bob, (p + 0.5) % 1, 0);
+      drawLeg(g, L, L.hips[1][0], L.hips[1][1] + bob, p % 1, 1);
       g.drawImage(body, 0, bob, 784, 784);   // the body on top hides the tops of the legs
     }
-    pics.forEach(im => im.onerror = () => { cancelAnimationFrame(id); cv.remove(); });
+    body.onerror = () => { cancelAnimationFrame(id); cv.remove(); };
     id = requestAnimationFrame(tick);
   }
 
