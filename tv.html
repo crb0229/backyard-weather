@@ -88,9 +88,9 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 #hourly{flex:1;font-size:1.1rem}   /* the table has the page to itself: taller rows; 1.1 is the largest text where all 9 hours fit */
 .eve .c0{border-color:var(--yard)}
 #radar .leaflet-tile-pane .basemap{filter:invert(1) hue-rotate(180deg) grayscale(.7) brightness(.75) contrast(1.15)}   /* dark map; turning the hue back keeps lakes a deep blue instead of a light grey that outshines the land */
-.sunmoon{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;gap:.8vh;min-height:0;position:relative;padding-bottom:1.4vh}   /* sky arc on top, sun and moon details below */
+.sunmoon{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;gap:.8vh;min-height:0;position:relative}   /* sky arc on top, sun and moon details below */
 .arcbox{position:relative}
-#sunArc{display:block;width:100%;height:15vh;overflow:visible}
+#sunArc{display:block;width:100%;height:12vh;overflow:visible}   /* 12vh leaves room for both moon dates at the bottom, with a little spare */
 #sunNow{position:absolute;left:0;top:0;margin:0;font-size:1.15rem}
 .arclabels{display:flex;justify-content:space-between;align-items:baseline;gap:1.6vw;margin-top:.4vh}
 .arclabels div{display:flex;flex-direction:column;line-height:1.25}
@@ -111,7 +111,7 @@ tr+tr td,tr+tr th{border-top:1px solid var(--line)}
 .moon .kv{font-size:1.2rem;gap:.3vh 1vw;margin-top:.5vh}
 #moonNext{white-space:pre;line-height:1.35;font-size:1rem}   /* one line per date, never wrapped mid-date */
 #moonLit{font-size:1.25rem}
-#moonCredit{position:absolute;right:0;bottom:0;margin:0}   /* the photo credit sits quietly in the corner */
+#moonCredit{margin:0 1vw 0 auto;font-size:.7rem}   /* the photo credit sits quietly in the title line, leaving the bottom to the moon dates */
 .clock{font:600 1.6rem var(--display)}
 .clock b{font:600 1.6rem var(--num);color:var(--accent);margin-left:.8vw}
 /* Themes: daylight (a lifted slate, not white), late-night dim, freezing and alert accents, holiday label */
@@ -245,7 +245,7 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
         <div class="chart" style="flex:.85"><canvas id="cPrecip"></canvas></div>
       </div>
       <div class="slide">
-        <div class="slidehead"><h2>Sun and moon today</h2><span class="dots"></span></div>
+        <div class="slidehead"><h2>Sun and moon today</h2><span class="small" id="moonCredit"></span><span class="dots"></span></div>
         <div class="sunmoon">
           <div class="arcbox"><svg id="sunArc" viewBox="0 0 1000 210"></svg><p class="small" id="sunNow"></p>
             <div class="arclabels"><div class="tw"><b id="sunDawn">--</b><span>Dawn</span></div><div><b id="sunRise">--</b><span>Sunrise</span></div><div class="grow"></div><div class="r"><b id="sunSet">--</b><span>Sunset</span></div><div class="r tw"><b id="sunDusk">--</b><span>Dusk</span></div></div></div>
@@ -253,7 +253,6 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
             <div><div class="kv"><span>Daylight</span><b id="dayLen">--</b><span>Midday sun</span><b id="sunHigh">--</b></div><p class="small" id="dayChange"></p><p class="small" id="solstice"></p></div>
             <div class="moon"><svg viewBox="0 0 100 100" id="moonPic"></svg><div><div class="callout" id="moonName">--</div><div class="num" id="moonLit"></div><div class="kv" id="moonTimes"></div><p class="small" id="moonNext"></p></div></div>
           </div>
-          <p class="small" id="moonCredit" style="font-size:.7rem"></p>
         </div>
       </div>
       <div class="slide">
