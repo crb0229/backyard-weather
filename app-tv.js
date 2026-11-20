@@ -14,7 +14,13 @@ let LAT = (LOC && LOC.lat) || 42.8, LON = (LOC && LOC.lon) || -85.5, MAP = null;
 const $ = id => document.getElementById(id) || document.createElement("div");
 const TVF = window.CHART_FONT || 10, HOURS = window.HOURS || 24;   // the TV page sets bigger text and fewer hours
 const nz = (a, b) => a == null ? b : a;   // older TV browsers can't read the newer shorthand for this
-const get = u => fetch(u, {cache: "no-store"}).then(r => { if (!r.ok) throw new Error(r.status + " " + u); return r.json(); });
+// Each request gets 20 seconds; one service that never answers must not hold up the whole page. Errors name the service.
+const get = u => {
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 20000), host = new URL(u, location.href).host;
+  return fetch(u, {cache: "no-store", signal: c.signal}).then(r => { if (!r.ok) throw new Error(r.status + " from " + host); return r.json(); })
+    .catch(e => { throw e.name === "AbortError" ? new Error("no answer from " + host) : / from /.test(e.message) ? e : new Error("couldn't reach " + host); })
+    .finally(() => clearTimeout(t));
+};
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));   // outside text is shown as text, never run as page code
 const f0 = v => v == null || v === "" ? "--" : Math.round(v);
 const fmt = new Intl.DateTimeFormat("en-CA", {timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23"});
@@ -65,7 +71,7 @@ async function main() {
   const results = await Promise.all([   // a failed piece becomes null, so one failure doesn't stop the rest (older TV browsers lack allSettled)
     get(`https://api.weather.gov/alerts/active?point=${LAT.toFixed(4)},${LON.toFixed(4)}`),
     nwsGet("forecast"), nwsGet("forecastHourly"), nwsGet("forecastGridData"), om, obsP,
-    STATION ? get("data/nowcast.json") : null].map(p => Promise.resolve(p).catch(() => null)));   // Rainbow.ai rain timing, collected for the home station only
+    STATION ? get("data/nowcast.json") : null].map(p => Promise.resolve(p).catch(e => { note(e.message); return null; })));   // Rainbow.ai rain timing, collected for the home station only
   const [alerts, daily, hourly, grid, model, cur, nowcast] = results;
   if (window.onData) try { window.onData(cur, model, alerts ? alerts.features : []); } catch (e) { note("theme didn't load"); }   // the TV page sets its theme here, before the charts read the colors
   if (alerts) showAlerts(alerts.features);
