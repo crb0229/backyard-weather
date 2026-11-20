@@ -193,12 +193,21 @@
   // across the screen (Thanksgiving: the turkey). It follows the clock, not a timer, since the page reloads every 15 minutes; the
   // first check after loading only notes the time, so nothing doubles up with the startup animation.
   // Never at night, with reduced motion, or with the theme switched off. A preview (?date=) walks once, soon after loading.
-  const go = w => w === "sleigh" ? root.ART.flyAcross() : root.ART.walkAcross(w);
+  const onScreen = () => !!(document.getElementById("holWalk") || document.getElementById("holFly"));
+  const go = w => { if (onScreen()) return; w === "sleigh" ? root.ART.flyAcross() : root.ART.walkAcross(w); };   // never two at once
   let walkedPreview = false, lastSlot = null;
   function maybeWalk(theme, now, preview) {
     if (!theme || !theme.main || isOff(H.store, theme, now) || reducedMotion() || isNight(now)) return;
     if (preview) {
-      if (theme.walker && !walkedPreview) { walkedPreview = true; [].concat(theme.walker).forEach((w, i) => setTimeout(() => go(w), 9000 + i * 16000)); }   // after the startup animation, each in turn
+      if (theme.walker && !walkedPreview) {   // after the startup animation, each walker in turn, the next only once the last has left
+        walkedPreview = true;
+        const list = [].concat(theme.walker), next = i => {
+          if (i >= list.length) return;
+          go(list[i]);
+          const wait = setInterval(() => { if (!onScreen()) { clearInterval(wait); setTimeout(() => next(i + 1), 3000); } }, 500);
+        };
+        setTimeout(() => next(0), 9000);
+      }
       return;
     }
     const slot = Math.floor((now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 150);   // which 2.5-minute stretch of the day
