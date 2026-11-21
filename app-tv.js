@@ -666,16 +666,50 @@ function rotateRadar(map) {
   // Crossfade: fade the map out, switch while it's hidden, wait for the new images (2 s at most), then fade back in.
   const box = document.getElementById("radar");
   const loaded = layer => Promise.race([new Promise(r => layer.once("load", r)), new Promise(r => setTimeout(r, 2000))]);
+  // HRRR model forecast radar from Iowa State (NOAA data): hourly frames from the latest run, now through 18 hours ahead.
+  // Tiles are fetched only while this view is up. If the run time can't be read, the "latest run" address is used and frames show hours ahead only.
+  let hr = null;
+  const hrStop = () => { if (hr) { clearInterval(hr.timer); hr.layers.forEach(l => map.removeLayer(l)); hr = null; } };
+  async function hrStart() {
+    const init = await fetch("https://mesonet.agron.iastate.edu/data/gis/images/4326/hrrr/refd_1080.json").then(r => r.json())
+      .then(j => Date.parse(j.model_init_utc)).catch(() => NaN);
+    const tag = isFinite(init) ? new Date(init).toISOString().replace(/[-:T]/g, "").slice(0, 12) : "0";
+    const layers = [...Array(19).keys()].map(h => L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/hrrr::REFD-F${String(h * 60).padStart(4, "0")}-${tag}/{z}/{x}/{y}.png`,
+      {opacity: 0, attribution: "IEM / NOAA HRRR"}));
+    layers.forEach(l => l.addTo(map));
+    const day = t => new Date(t).toLocaleDateString("en-CA", {timeZone: TZ});
+    let i = 0;
+    const show = () => {
+      layers.forEach((l, k) => l.setOpacity(k === i ? 0.7 : 0));
+      let txt = `+${i} h`;
+      if (isFinite(init)) {
+        const t = init + i * 3600000, hour = new Date(t).toLocaleTimeString("en-US", {timeZone: TZ, hour: "numeric"});
+        txt = `${day(t) === day(Date.now()) ? "" : new Date(t).toLocaleDateString("en-US", {timeZone: TZ, weekday: "short"}) + " "}${hour} (+${i} h)`;
+      }
+      $("radarTime").textContent = "Model forecast " + txt;
+      $("radarProg").style.width = ((i + 1) / layers.length * 100) + "%";
+      i = (i + 1) % layers.length;
+    };
+    hr = {layers, timer: setInterval(show, 600)};
+    show();
+    return loaded(layers[0]);
+  }
   setInterval(() => {
     box.style.transition = "opacity .6s ease-in";
     box.style.opacity = 0;
     setTimeout(() => {
-      const views = [["Radar, local", 8], [STATION ? "Radar, Great Lakes" : "Radar, region", 6]].concat(daylight() ? [["Satellite clouds", 6, true]] : []);
+      const views = [["Radar, local", 8], [STATION ? "Radar, Great Lakes" : "Radar, region", 6]].concat(daylight() ? [["Satellite clouds", 6, true]] : [], [["Forecast radar, next 18 hours", 7, false, true]]);
       v = (v + 1) % views.length;
-      const [title, zoom, isSat] = views[v];
+      const [title, zoom, isSat, isHr] = views[v];
       if (sat) { map.removeLayer(sat); sat = null; }
+      hrStop();
       let ready;
-      if (isSat) {
+      if (isHr) {
+        clearInterval(timer); timer = null;
+        frames.concat(fcFrames).forEach(f => f.layer.setOpacity(0));
+        ready = Promise.all([hrStart(), loaded(BASE)]);
+        $("dbzKey").style.visibility = "";
+      } else if (isSat) {
         clearInterval(timer); timer = null;
         frames.concat(fcFrames).forEach(f => f.layer.setOpacity(0));
         sat = L.tileLayer(`https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/goes_east_conus_ch02/{z}/{x}/{y}.png?t=${Date.now()}`,
