@@ -21,17 +21,29 @@
 
   // Each effect: (g, w, h, t seconds, st = state kept for this run). u scales sizes to the screen height.
   const INTROS = {
-    // Christmas: real snowflakes drift down slowly, swaying and turning
+    // Christmas: snow in layers. Far flakes are small, faint, soft dots that fall slowly; near ones are bigger, brighter flakes that
+    // fall faster. A gentle wind sways everything together, and the snow fades in as well as out.
     snow(g, w, h, t, st) {
-      const u = h / 1080;
-      st.f = st.f || Array.from({length: 100}, () => ({x: rnd(0, w), y: rnd(-1.9 * h, -0.05 * h), s: rnd(16, 40) * u, v: rnd(0.07, 0.13) * h,
-        sw: rnd(10, 30) * u, fq: rnd(0.4, 0.9), ph: rnd(0, 6.3), r: rnd(-0.4, 0.4)}));
+      const u = h / 1080, DUR = INTROS.snow.dur;
+      if (!st.dot) {   // a soft white dot, drawn once and reused
+        const c = document.createElement("canvas"); c.width = c.height = 64;
+        const x = c.getContext("2d"), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gr.addColorStop(0, "rgba(255,255,255,.95)"); gr.addColorStop(0.4, "rgba(255,255,255,.5)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+        x.fillStyle = gr; x.fillRect(0, 0, 64, 64); st.dot = c;
+      }
+      st.f = st.f || Array.from({length: 130}, (_, i) => {
+        const z = Math.random(), soft = i % 2 === 0, v = (soft ? 0.045 + 0.05 * z : 0.07 + 0.08 * z) * h;   // z: 0 far, 1 near
+        return {x: rnd(0, w), y: rnd(-(DUR - 1) * v, -0.05 * h), z, soft, v, s: (soft ? 9 + 12 * z : 16 + 18 * z) * u,
+          sw: rnd(8, 26) * u * (0.5 + z), fq: rnd(0.4, 0.9), ph: rnd(0, 6.3), r: rnd(-0.4, 0.4), a: soft ? 0.35 + 0.4 * z : 0.55 + 0.4 * z};
+      });
       const img = sprite("snowflake");
       if (img === WAIT) return;   // the snowflake picture is still loading
+      const wind = u * (60 * Math.sin(t * 0.3) + 25 * Math.sin(t * 0.8 + 1)), fade = Math.min(1, t / 1.2);
       for (const f of st.f) {
-        const x = f.x + Math.sin(t * f.fq + f.ph) * f.sw, y = f.y + f.v * t;
-        if (img) drawSprite(g, img, x, y, f.s, f.ph + f.r * t, 0.85);
-        else { g.globalAlpha = 0.8; g.fillStyle = "#fff"; g.beginPath(); g.arc(x, y, f.s / 6, 0, 6.3); g.fill(); g.globalAlpha = 1; }
+        const x = f.x + Math.sin(t * f.fq + f.ph) * f.sw + wind * (0.4 + f.z), y = f.y + f.v * t;
+        if (y < -f.s || y > h + f.s) continue;
+        if (f.soft || !img) { g.save(); g.globalAlpha *= f.a * fade; g.drawImage(st.dot, x - f.s, y - f.s, f.s * 2, f.s * 2); g.restore(); }
+        else drawSprite(g, img, x, y, f.s, f.ph + f.r * t, f.a * fade);
       }
     },
     // New Year's: soft gold confetti tumbling down, a few confetti clusters, and bubbles rising from the bottom
@@ -344,13 +356,16 @@
   function flyAcross() {
     if (document.getElementById("holFly")) return;
     const img = new Image(); img.src = "img/holiday/sprite-sleigh.webp";
-    const dir = Math.random() < 0.5 ? 1 : -1, dur = 11, dpr = devicePixelRatio || 1;
-    const W = innerWidth, H = Math.round(innerHeight * 0.14), sw = Math.round(innerHeight * 0.36);   // small enough to stay in the header strip
+    const dir = Math.random() < 0.5 ? 1 : -1, dur = 11, dpr = devicePixelRatio || 1, u0 = innerHeight / 1080;
+    const W = innerWidth, Hs = Math.round(innerHeight * 0.14), H = Math.round(innerHeight * 0.26), sw = Math.round(innerHeight * 0.36);   // the sleigh stays in the header strip; the dust may drift a little below it
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
     cv.id = "holFly"; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     Object.assign(cv.style, {position: "fixed", left: "0", top: "0", width: W + "px", height: H + "px", pointerEvents: "none", zIndex: "1400"});
     document.body.appendChild(cv);
-    const stars = []; let t0 = null, id = 0, frame = 0;
+    const stars = [], COLORS = ["#fff3b0", "#ffffff", "#bfe3ff", "#ffd36a"], dot = document.createElement("canvas");
+    dot.width = dot.height = 32;   // a soft white glow, drawn once and reused
+    { const x = dot.getContext("2d"), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, "rgba(255,255,255,.9)"); gr.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = gr; x.fillRect(0, 0, 32, 32); }
+    let t0 = null, id = 0, frame = 0, last = 0;
     function tick(now) {
       if (t0 === null) t0 = now;
       const t = (now - t0) / 1000;
@@ -360,16 +375,26 @@
       if (!img.complete || !img.naturalWidth) return;
       const sh = sw * img.naturalHeight / img.naturalWidth, u = t / dur;
       const x = dir > 0 ? -sw + (W + sw) * u : W - (W + sw) * u;
-      const y = (H - sh) / 2 + Math.sin(u * 2 * Math.PI * 1.5) * H * 0.05 + Math.sin(t * 7) * 1.5;   // slow swoops plus a quick flutter
+      const y = (Hs - sh) / 2 + Math.sin(u * 2 * Math.PI * 1.5) * H * 0.05 + Math.sin(t * 7) * 1.5;   // slow swoops plus a quick flutter
       const tilt = Math.cos(u * 2 * Math.PI * 1.5) * 0.05 * dir + Math.sin(t * 7) * 0.012;      // nose up while rising
       g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-      if (Math.random() < 0.8) stars.push({x: x + (dir > 0 ? 0.1 : 0.9) * sw, y: y + sh * (0.3 + Math.random() * 0.5), vy: 4 + Math.random() * 10, life: 1, r: 2 + Math.random() * 3});
-      for (let i = stars.length - 1; i >= 0; i--) {
-        const s = stars[i]; s.life -= 0.02; s.y += s.vy / 30;
-        if (s.life <= 0) { stars.splice(i, 1); continue; }
-        g.globalAlpha = s.life; g.fillStyle = "#fff6b0"; g.beginPath(); g.arc(s.x, s.y, s.r * s.life + 0.5, 0, 7); g.fill();
+      const dt = Math.min(0.1, t - last); last = t;
+      for (let n = 0; n < 4; n++) {   // dust comes off the back of the sleigh and the runners
+        const f = 0.7 + Math.random() * 0.3, c = COLORS[Math.floor(Math.random() * 4)];   // f: how far back along the sleigh, in the picture's own layout
+        stars.push({x: x + (dir > 0 ? 1 - f : f) * sw, y: y + sh * (0.45 + Math.random() * 0.5), vx: -dir * (40 + Math.random() * 90) * u0, vy: (Math.random() - 0.3) * 30 * u0,
+          life: 1, decay: 0.5 + Math.random() * 0.6, r: (6 + Math.random() * 9) * u0, rot: Math.random() * 1.5, ph: Math.random() * 6.3, c});
       }
-      g.globalAlpha = 1;
+      g.globalCompositeOperation = "lighter";   // glowing dust: light adds to what is behind it
+      for (let i = stars.length - 1; i >= 0; i--) {
+        const s = stars[i]; s.life -= s.decay * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 12 * u0 * dt;
+        if (s.life <= 0) { stars.splice(i, 1); continue; }
+        const tw = 0.6 + 0.4 * Math.sin(t * 14 + s.ph), r = s.r * (0.4 + 0.6 * s.life) * tw;   // twinkles and shrinks as it fades
+        g.globalAlpha = Math.min(1, s.life * 1.3) * 0.5; g.drawImage(dot, s.x - r * 2.2, s.y - r * 2.2, r * 4.4, r * 4.4);
+        g.globalAlpha = Math.min(1, s.life * 1.3); g.fillStyle = s.c; g.beginPath();
+        for (let k = 0; k < 8; k++) { const rr = k % 2 ? r * 0.28 : r, an = s.rot + k * Math.PI / 4; g[k ? "lineTo" : "moveTo"](s.x + Math.cos(an) * rr, s.y + Math.sin(an) * rr); }
+        g.closePath(); g.fill();
+      }
+      g.globalCompositeOperation = "source-over"; g.globalAlpha = 1;
       g.translate(x + sw / 2, y + sh / 2); g.rotate(tilt); g.scale(-dir, 1);   // the picture faces left, so mirror it to fly right
       g.drawImage(img, -sw / 2, -sh / 2, sw, sh);
     }
