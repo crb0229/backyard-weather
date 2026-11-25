@@ -1,7 +1,7 @@
 {
  "lat": 42.8,
  "lon": -85.5,
- "time": "2026-11-25T10:15:00.000Z",
+ "time": "2026-11-25T10:30:00.000Z",
  "temp": 22.6,
  "dew": 19.86,
  "feels": 22.6,
@@ -10,7 +10,7 @@
  "gust": 0,
  "winddir": 235,
  "maxgust_today": 2.2,
- "pressure": 30.47,
+ "pressure": 30.467,
  "rain_rate": 0,
  "rain_today": 0,
  "rain_event": 0,
