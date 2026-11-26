@@ -1,8 +1,8 @@
 {
- "updated": 1795719642,
- "until": 1795726842,
- "start": 1795724940,
+ "updated": 1795720543,
+ "until": 1795727743,
+ "start": null,
  "end": null,
- "type": "rain",
- "strength": "light"
+ "type": null,
+ "strength": null
 }
