@@ -111,6 +111,7 @@ def cmd_latest():
         "winddir": d.get("winddir"), "maxgust_today": d.get("maxdailygust"),
         "pressure": d.get("baromrelin"), "rain_rate": d.get("hourlyrainin"),
         "rain_today": d.get("dailyrainin"), "rain_event": d.get("eventrainin"),
+        "rain_week": d.get("weeklyrainin"), "rain_month": d.get("monthlyrainin"), "rain_year": d.get("yearlyrainin"),
         "solar": d.get("solarradiation"), "uv": d.get("uv"),
     })
 
@@ -180,6 +181,21 @@ def add_station_history(since, resume=False, minutes=45):
     finally:
         save()
     return len(obs), finished
+
+
+def add_rain_daily(days):
+    """Rain per finished day (Michigan time) for the last `days` days: the highest 'rain today' the station reported that day.
+    One station request per day. Today is left out; the TV page uses the live reading for it."""
+    rows = read_csv("rain_daily.csv")
+    today = datetime.now(TZ).date()
+    for k in range(1, days + 1):
+        d = today - timedelta(days=k)
+        end = datetime.combine(d + timedelta(days=1), datetime.min.time(), TZ)
+        vals = [r["dailyrainin"] for r in station_readings(int(end.timestamp() * 1000))
+                if r.get("dailyrainin") is not None and datetime.fromtimestamp(r["dateutc"] / 1000, TZ).date() == d]
+        if vals:
+            rows[d.isoformat()] = {"rain": round(max(vals), 2)}
+    write_csv("rain_daily.csv", rows, ["rain"])
 
 
 # ---------- past model forecasts (Open-Meteo, 24 hours ahead) ----------
@@ -333,6 +349,10 @@ def cmd_daily():
     os.makedirs(DATA, exist_ok=True)
     cmd_latest()
     add_station_history((datetime.now(timezone.utc) - timedelta(days=2)).date().isoformat())
+    try:   # first run fills 14 days, later runs top up the last 3; a failure here must not block the rebuild
+        add_rain_daily(3 if len(read_csv("rain_daily.csv")) >= 14 else 14)
+    except Exception as e:
+        print(f"Rain history skipped: {type(e).__name__}", file=sys.stderr)
     today = datetime.now(timezone.utc).date()
     add_model_history((today - timedelta(days=3)).isoformat(), (today - timedelta(days=1)).isoformat())
     try:

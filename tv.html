@@ -56,6 +56,9 @@ body.stale.veryStale #nowAge{color:var(--warn)}   /* orange only past an hour; 3
 .slide{position:absolute;top:1.2vh;right:1.2vw;bottom:1.2vh;left:1.2vw;display:flex;flex-direction:column;gap:1vh;opacity:0;transition:opacity .8s}
 .slide.on{opacity:1}
 .slide[hidden]{display:none}
+.rainTiles{flex:1;display:grid;grid-template-columns:repeat(6,1fr);gap:0 .6vw;flex:none}
+.rainTiles div{display:flex;flex-direction:column;justify-content:center;border:1px solid var(--line);border-radius:8px;padding:.6vh 1vw}
+.rainTiles b{font:600 1.45rem var(--num)}
 .slidehead{display:flex;justify-content:space-between;align-items:center}
 .dots span{display:inline-block;width:.8vh;height:.8vh;border-radius:50%;background:var(--line);margin-left:.5vh}
 .dots span.on{background:var(--accent)}
@@ -246,6 +249,12 @@ window.RAINBOW_TILES = "https://rainbow-tiles.racingfan74.workers.dev";   // the
         <div class="slidehead"><h2>Sky and rain, next 3 days</h2><span class="dots"></span></div>
         <div class="chart"><canvas id="cSky"></canvas></div>
         <div class="chart" style="flex:.85"><canvas id="cPrecip"></canvas></div>
+      </div>
+      <div class="slide" id="rainSlide" hidden>
+        <div class="slidehead"><h2>Rain gauge at the station</h2><span class="dots"></span></div>
+        <div class="rainTiles" id="rainTiles"></div>
+        <div class="chart"><canvas id="cRain"></canvas></div>
+        <p class="small">Inches of rain at the station: daily totals, last 14 days.</p>
       </div>
       <div class="slide">
         <div class="slidehead"><h2>Sun and moon today</h2><span class="small" id="moonCredit"></span><span class="dots"></span></div>

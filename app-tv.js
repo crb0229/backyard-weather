@@ -88,6 +88,36 @@ async function main() {
   $("updated").textContent = "Updated " + new Date().toLocaleTimeString("en-US", {timeZone: TZ, hour: "numeric", minute: "2-digit"});
 }
 
+// Rain gauge slide: station only. Tiles with no reading are left out; no readings at all hides the slide.
+function rainSlide(s) {
+  const tiles = [["Now", s.rain_rate, '"/h'], ["Today", s.rain_today, '"'], ["Storm", s.rain_event, '"'],
+    ["Week", s.rain_week, '"'], ["Month", s.rain_month, '"'], ["Year", s.rain_year, '"']].filter(t => t[1] != null);
+  $("rainTiles").innerHTML = tiles.map(([k, v, u]) => `<div><span class="small">${k}</span><b>${v.toFixed(2)}${u}</b></div>`).join("");
+  $("rainSlide").hidden = !STATION || !tiles.length;
+  if (STATION && s.rain_today != null) rainChart(s.rain_today);
+}
+
+// Daily rain bars: finished days from data/rain_daily.csv plus today's live total. No file yet (first run): no chart.
+function rainChart(today) {
+  const css = getComputedStyle(document.documentElement), c = n => css.getPropertyValue(n).trim();
+  fetch("data/rain_daily.csv?t=" + Date.now(), {cache: "no-store"}).then(r => r.ok ? r.text() : "").then(txt => {
+    const days = txt.trim().split("\n").slice(1).map(l => l.split(",")).filter(r => r[1] !== "").slice(-13).map(r => [r[0], +r[1]]);
+    if (!days.length) return;
+    days.push([new Date().toLocaleDateString("sv-SE", {timeZone: TZ}), today]);
+    const labels = days.map(d => +d[0].slice(5, 7) + "/" + +d[0].slice(8, 10)), vals = days.map(d => d[1]);
+    const amounts = {id: "rainAmounts", afterDatasetsDraw(ch) {
+      const g = ch.ctx; g.save(); g.fillStyle = c("--fg"); g.font = `600 ${TVF}px ${getComputedStyle(document.body).fontFamily}`; g.textAlign = "center";
+      ch.getDatasetMeta(0).data.forEach((bar, i) => { if (vals[i] >= 0.01) g.fillText(vals[i].toFixed(2), bar.x, bar.y - 4); });
+      g.restore(); }};
+    charts.push(new Chart($("cRain"), {type: "bar", plugins: [amounts],
+      data: {labels, datasets: [{data: vals, backgroundColor: vals.map((v, i) => i === vals.length - 1 ? c("--yard") : c("--accent")), barPercentage: .7, categoryPercentage: .9}]},
+      options: {maintainAspectRatio: false, animation: false, layout: {padding: {top: TVF + 6}},
+        plugins: {legend: {display: false}, tooltip: {enabled: false}},
+        scales: {x: {grid: {display: false}, ticks: {color: c("--muted"), font: {size: TVF}, maxRotation: 0}},
+          y: {min: 0, suggestedMax: 0.25, grid: {color: c("--line")}, ticks: {color: c("--muted"), font: {size: TVF}, maxTicksLimit: 3, callback: v => v.toFixed(2)}}}}}));
+  }).catch(() => {});
+}
+
 function showNow(s) {
   $("nowTemp").textContent = f0(s.temp) + "°";
   // Rows with no reading are left out (NWS stations don't report rain totals, and often no gusts)
@@ -96,6 +126,7 @@ function showNow(s) {
     ["Rain rate", s.rain_rate, v => v.toFixed(2) + '"/h'], ["Humidity", s.humidity, v => f0(v) + "%"], ["Pressure", s.pressure, v => v.toFixed(2)]]
     .filter(r => r[1] != null);
   $("nowKv").innerHTML = rows.map(([k, v, f]) => `<span>${k}</span><b>${f(v)}</b>`).join("");
+  rainSlide(s);
   const mins = Math.round((Date.now() - new Date(s.time)) / 60000);
   $("nowAge").textContent = s.source ? `Reading from ${s.source}, ${mins} min ago.` : `Station reading from ${mins} min ago. Readings refresh about every 15 min.`;
 }
