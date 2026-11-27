@@ -109,12 +109,14 @@ function rainChart(today) {
       const g = ch.ctx; g.save(); g.fillStyle = c("--fg"); g.font = `600 ${TVF}px ${getComputedStyle(document.body).fontFamily}`; g.textAlign = "center";
       ch.getDatasetMeta(0).data.forEach((bar, i) => { if (vals[i] >= 0.01) g.fillText(vals[i].toFixed(2), bar.x, bar.y - 4); });
       g.restore(); }};
-    charts.push(new Chart($("cRain"), {type: "bar", plugins: [amounts],
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;   // the forecast charts set this later; the rain chart may draw first
+    const old = Chart.getChart($("cRain")); if (old) old.destroy();   // own chart, kept out of `charts`: the forecast charts clear that list whenever they redraw
+    new Chart($("cRain"), {type: "bar", plugins: [amounts],
       data: {labels, datasets: [{data: vals, backgroundColor: vals.map((v, i) => i === vals.length - 1 ? c("--yard") : c("--accent")), barPercentage: .7, categoryPercentage: .9}]},
       options: {maintainAspectRatio: false, animation: false, layout: {padding: {top: TVF + 6}},
         plugins: {legend: {display: false}, tooltip: {enabled: false}},
         scales: {x: {grid: {display: false}, ticks: {color: c("--muted"), font: {size: TVF}, maxRotation: 0}},
-          y: {min: 0, suggestedMax: 0.25, grid: {color: c("--line")}, ticks: {color: c("--muted"), font: {size: TVF}, maxTicksLimit: 3, callback: v => v.toFixed(2)}}}}}));
+          y: {min: 0, suggestedMax: 0.25, grid: {color: c("--line")}, ticks: {color: c("--muted"), font: {size: TVF}, maxTicksLimit: 3, callback: v => v.toFixed(2)}}}}});
   }).catch(() => {});
 }
 
