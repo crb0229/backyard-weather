@@ -1,14 +1,14 @@
 {
  "lat": 42.8,
  "lon": -85.5,
- "time": "2026-11-28T17:47:00.000Z",
- "temp": 45,
- "dew": 40.77,
- "feels": 43.26,
- "humidity": 85,
- "wind": 3.8,
- "gust": 4.5,
- "winddir": 227,
+ "time": "2026-11-28T18:00:00.000Z",
+ "temp": 46.2,
+ "dew": 41.64,
+ "feels": 43.38,
+ "humidity": 84,
+ "wind": 5.6,
+ "gust": 8.1,
+ "winddir": 247,
  "maxgust_today": 11.4,
  "pressure": 29.584,
  "rain_rate": 0,
@@ -17,6 +17,6 @@
  "rain_week": 1.19,
  "rain_month": 1.77,
  "rain_year": null,
- "solar": 303.64,
- "uv": 2
+ "solar": 110.96,
+ "uv": 1
 }
